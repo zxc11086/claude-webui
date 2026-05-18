@@ -1,3 +1,4 @@
+import { useState, useCallback } from 'react';
 import { useWebSocket } from './hooks/use-websocket';
 import { Sidebar } from './components/layout/Sidebar';
 import { ChatView } from './components/chat/ChatView';
@@ -6,7 +7,44 @@ import { useChatStore } from './stores/chat-store';
 
 export default function App() {
   const ws = useWebSocket();
-  const { connected, activeSessionId, pendingApproval } = useChatStore();
+  const { connected, activeSessionId, pendingApproval, workspaceId } = useChatStore();
+  const [creating, setCreating] = useState(false);
+
+  const handleCreateSession = useCallback(async () => {
+    setCreating(true);
+    try {
+      // First, ensure we have a workspace
+      let wid = useChatStore.getState().workspaceId;
+
+      if (!wid) {
+        // Fetch workspace from API if WebSocket hasn't delivered it yet
+        const res = await fetch('/api/workspaces?userId=default');
+        const workspaces = await res.json();
+        if (workspaces.length > 0) {
+          wid = workspaces[0].id;
+          useChatStore.getState().setWorkspace(wid);
+        } else {
+          // Create default workspace via API
+          const createRes = await fetch('/api/workspaces', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: 'default', userId: 'default' }),
+          });
+          const ws = await createRes.json();
+          wid = ws.id;
+          useChatStore.getState().setWorkspace(wid);
+        }
+      }
+
+      if (wid) {
+        ws.createSession(wid);
+      }
+    } catch (err) {
+      console.error('Failed to create session:', err);
+    } finally {
+      setCreating(false);
+    }
+  }, [ws]);
 
   return (
     <div className="flex h-screen w-screen overflow-hidden">
@@ -34,14 +72,11 @@ export default function App() {
                 创建会话开始与 Claude 交互，支持流式输出、Tool Call 可视化和 Shell 输出实时展示。
               </p>
               <button
-                onClick={() => {
-                  const workspaceId = useChatStore.getState().workspaceId;
-                  if (workspaceId) ws.createSession(workspaceId);
-                }}
-                disabled={!connected}
+                onClick={handleCreateSession}
+                disabled={!connected || creating}
                 className="inline-flex items-center gap-2 px-6 py-3 rounded-lg bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-50 transition-opacity font-medium"
               >
-                开始新会话
+                {creating ? '创建中...' : '开始新会话'}
               </button>
               <p className="text-xs text-muted-foreground">
                 连接状态: {connected ? '已连接' : '未连接'}

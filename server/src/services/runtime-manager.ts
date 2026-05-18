@@ -1,15 +1,14 @@
-import pty from 'node-pty';
+import { spawn, ChildProcess } from 'child_process';
 import { config } from '../config.js';
 import { StreamParser } from './stream-parser.js';
 import { RuntimeEvent, ClaudeStreamEvent } from '../types/index.js';
 import { v4 as uuid } from 'uuid';
 import fs from 'fs';
-import path from 'path';
 
 export interface RuntimeSession {
   sessionId: string;
   workspacePath: string;
-  proc: pty.IPty;
+  proc: ChildProcess;
   parser: StreamParser;
   onEvent: (event: RuntimeEvent) => void;
   onExit: (sessionId: string) => void;
@@ -33,15 +32,17 @@ export class RuntimeManager {
 
     const parser = new StreamParser();
 
-    const proc = pty.spawn(config.claudePath, ['--output', 'stream-json'], {
-      name: 'xterm-color',
-      cols: 200,
-      rows: 60,
+    const proc = spawn(config.claudePath, ['--output', 'stream-json'], {
       cwd: workspacePath,
       env: {
         ...process.env,
-        TERM: 'xterm-color',
+        TERM: 'dumb',
+        NO_COLOR: '1',
+        CLICOLOR: '0',
+        FORCE_COLOR: '0',
       },
+      stdio: ['pipe', 'pipe', 'pipe'],
+      windowsHide: true,
     });
 
     const runtime: RuntimeSession = {
@@ -57,13 +58,44 @@ export class RuntimeManager {
 
     sessions.set(sessionId, runtime);
 
-    // Parse PTY output through stream parser
-    proc.onData((data: string) => {
-      runtime.heartbeatAt = Date.now();
-      parser.feed(data);
+    // Read stdout and parse stream-json
+    if (proc.stdout) {
+      proc.stdout.setEncoding('utf-8');
+      proc.stdout.on('data', (data: string) => {
+        runtime.heartbeatAt = Date.now();
+        parser.feed(data);
+      });
+    }
+
+    // Read stderr for errors
+    if (proc.stderr) {
+      proc.stderr.setEncoding('utf-8');
+      proc.stderr.on('data', (data: string) => {
+        // Stderr from Claude may contain progress info
+        // Log it but don't try to parse as JSON
+        console.error(`[Claude stderr][${sessionId.slice(0, 8)}] ${data.trim()}`);
+      });
+    }
+
+    // Handle process errors (e.g., claude not found)
+    proc.on('error', (err: NodeJS.ErrnoException) => {
+      RuntimeManager.emitEvent(runtime, {
+        id: uuid(),
+        sessionId,
+        type: 'error',
+        payload: {
+          message: err.code === 'ENOENT'
+            ? `Claude CLI not found. Please install Claude Code CLI first. (${config.claudePath})`
+            : `Process error: ${err.message}`,
+        },
+        createdAt: Date.now(),
+      });
+      sessions.delete(sessionId);
+      onExit(sessionId);
     });
 
-    proc.onExit(({ exitCode, signal }) => {
+    // Handle process exit
+    proc.on('close', (exitCode, signal) => {
       RuntimeManager.emitEvent(runtime, {
         id: uuid(),
         sessionId,
@@ -93,31 +125,32 @@ export class RuntimeManager {
   static write(sessionId: string, text: string): void {
     const session = sessions.get(sessionId);
     if (!session) throw new Error(`Session ${sessionId} not found`);
-    session.proc.write(text + '\r\n');
-    session.heartbeatAt = Date.now();
+    if (session.proc.stdin) {
+      session.proc.stdin.write(text + '\n');
+      session.heartbeatAt = Date.now();
+    }
   }
 
   /** Send an approval response to the Claude process */
-  static approve(sessionId: string, requestId: string, approved: boolean): void {
+  static approve(sessionId: string, _requestId: string, approved: boolean): void {
     const session = sessions.get(sessionId);
     if (!session) throw new Error(`Session ${sessionId} not found`);
-    const response = approved ? 'yes' : 'no';
-    // Claude CLI typically uses stdin to receive approval responses
-    session.proc.write(response + '\r\n');
-    session.heartbeatAt = Date.now();
+    if (session.proc.stdin) {
+      session.proc.stdin.write(approved ? 'yes\n' : 'no\n');
+      session.heartbeatAt = Date.now();
+    }
   }
 
-  /** Resize PTY terminal */
-  static resize(sessionId: string, cols: number, rows: number): void {
-    const session = sessions.get(sessionId);
-    if (session) {
-      session.proc.resize(cols, rows);
-    }
+  /** Resize is not supported with child_process.spawn (no-op) */
+  static resize(_sessionId: string, _cols: number, _rows: number): void {
+    // Not supported with child_process.spawn
   }
 
   /** Check if a session is still active */
   static isActive(sessionId: string): boolean {
-    return sessions.has(sessionId);
+    const session = sessions.get(sessionId);
+    if (!session) return false;
+    return !session.proc.killed && session.proc.exitCode === null;
   }
 
   /** Get session info */
@@ -150,9 +183,10 @@ export class RuntimeManager {
     }
   }
 
-  /** Map Claude stream events to internal Runtime events */
+  // --- Stream event wiring ---
+
   private static wireParser(runtime: RuntimeSession): void {
-    // Assistant delta — streaming text
+    // content_block_delta — streaming text tokens
     runtime.parser.on('content_block_delta', (ev: ClaudeStreamEvent) => {
       if (ev.delta?.text) {
         RuntimeManager.emitEvent(runtime, {
@@ -165,15 +199,14 @@ export class RuntimeManager {
       }
     });
 
-    // Catch-all: also handle stream_event type (wrapped events)
+    // stream_event — wrapped events from newer Claude CLI versions
     runtime.parser.on('stream_event', (ev: ClaudeStreamEvent) => {
       const inner = ev.event || ev;
       RuntimeManager.dispatchInner(runtime, inner);
     });
 
-    // Direct events (not wrapped)
+    // assistant block
     runtime.parser.on('assistant', (ev: ClaudeStreamEvent) => {
-      // Handle assistant message blocks
       if (ev.message?.content) {
         for (const block of ev.message.content) {
           if (block.type === 'text' && block.text) {
@@ -189,11 +222,7 @@ export class RuntimeManager {
               id: uuid(),
               sessionId: runtime.sessionId,
               type: 'tool.call',
-              payload: {
-                toolId: block.id,
-                tool: block.name,
-                input: block.input,
-              },
+              payload: { toolId: block.id, tool: block.name, input: block.input },
               createdAt: Date.now(),
             });
           }
@@ -201,26 +230,21 @@ export class RuntimeManager {
       }
     });
 
-    // Tool use events
+    // tool_use
     runtime.parser.on('tool_use', (ev: ClaudeStreamEvent) => {
       RuntimeManager.emitEvent(runtime, {
         id: uuid(),
         sessionId: runtime.sessionId,
         type: 'tool.call',
-        payload: {
-          toolId: ev.id || uuid(),
-          tool: ev.name || 'unknown',
-          input: ev.input || {},
-        },
+        payload: { toolId: ev.id || uuid(), tool: ev.name || 'unknown', input: ev.input || {} },
         createdAt: Date.now(),
       });
     });
 
-    // Tool result events
+    // tool_result
     runtime.parser.on('tool_result', (ev: ClaudeStreamEvent) => {
       const content = ev.content;
       let result: any = content;
-      // If it's a string or array, keep as-is
       if (Array.isArray(content)) {
         result = content.map((c: any) => c.text || '').join('\n');
       } else if (typeof content === 'string') {
@@ -230,17 +254,13 @@ export class RuntimeManager {
         id: uuid(),
         sessionId: runtime.sessionId,
         type: 'tool.result',
-        payload: {
-          toolId: ev.tool_use_id || '',
-          result,
-        },
+        payload: { toolId: ev.tool_use_id || '', result },
         createdAt: Date.now(),
       });
     });
 
-    // User/tool events (for detecting shell output)
+    // user block — may contain tool results
     runtime.parser.on('user', (ev: ClaudeStreamEvent) => {
-      // user events may contain tool results with shell output
       if (ev.message?.content) {
         for (const block of ev.message.content) {
           if (block.type === 'tool_result') {
@@ -255,11 +275,7 @@ export class RuntimeManager {
               id: uuid(),
               sessionId: runtime.sessionId,
               type: 'tool.stdout',
-              payload: {
-                toolId: block.tool_use_id || '',
-                stream: 'stdout',
-                delta: text,
-              },
+              payload: { toolId: block.tool_use_id || '', stream: 'stdout', delta: text },
               createdAt: Date.now(),
             });
           }
@@ -267,7 +283,7 @@ export class RuntimeManager {
       }
     });
 
-    // Generic handler for raw content delta (common pattern)
+    // content_block_start — tool call initiation
     runtime.parser.on('content_block_start', (ev: ClaudeStreamEvent) => {
       if (ev.content_block?.type === 'tool_use') {
         const cb = ev.content_block;
@@ -275,17 +291,13 @@ export class RuntimeManager {
           id: uuid(),
           sessionId: runtime.sessionId,
           type: 'tool.call',
-          payload: {
-            toolId: cb.id || uuid(),
-            tool: cb.name || 'unknown',
-            input: cb.input || {},
-          },
+          payload: { toolId: cb.id || uuid(), tool: cb.name || 'unknown', input: cb.input || {} },
           createdAt: Date.now(),
         });
       }
     });
 
-    // Error handling
+    // error
     runtime.parser.on('error', (ev: ClaudeStreamEvent) => {
       RuntimeManager.emitEvent(runtime, {
         id: uuid(),
@@ -298,7 +310,6 @@ export class RuntimeManager {
   }
 
   private static dispatchInner(runtime: RuntimeSession, ev: ClaudeStreamEvent): void {
-    // Handle nested stream events
     if (ev.type === 'content_block_delta' && ev.delta?.text) {
       RuntimeManager.emitEvent(runtime, {
         id: uuid(),

@@ -3,7 +3,7 @@ import { io, Socket } from 'socket.io-client';
 import { useChatStore } from '../stores/chat-store';
 import { ServerToClientEvents, ToolCall, Session } from '../types/index';
 
-const SOCKET_URL = import.meta.env.VITE_WS_URL || '';
+const SOCKET_URL = import.meta.env.VITE_WS_URL || 'http://localhost:3001';
 
 export function useWebSocket() {
   const socketRef = useRef<Socket | null>(null);
