@@ -1,0 +1,27 @@
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const ROOT_DIR = path.resolve(__dirname, '..', '..');
+
+export const config = {
+  port: parseInt(process.env.PORT || '3001', 10),
+  host: process.env.HOST || '0.0.0.0',
+
+  // Workspace root for user isolation
+  workspacesRoot: process.env.WORKSPACES_ROOT || path.join(ROOT_DIR, 'workspaces'),
+
+  // Database
+  dbPath: process.env.DB_PATH || path.join(ROOT_DIR, 'data', 'claude-webui.db'),
+
+  // Claude CLI
+  claudePath: process.env.CLAUDE_PATH || 'claude',
+
+  // Session limits
+  sessionTimeout: parseInt(process.env.SESSION_TIMEOUT || '3600000', 10), // 1 hour
+  maxSessionsPerUser: parseInt(process.env.MAX_SESSIONS || '5', 10),
+
+  // Process limits
+  processHeartbeatInterval: 30000, // 30s
+  processCleanupInterval: 60000,   // 60s
+};

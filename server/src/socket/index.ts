@@ -1,0 +1,150 @@
+import { Server as HttpServer } from 'http';
+import { Server as SocketServer, Socket } from 'socket.io';
+import { SessionService } from '../services/session-service.js';
+import { ClientEvent, ServerEvent, RuntimeEvent, Message } from '../types/index.js';
+import { v4 as uuid } from 'uuid';
+
+interface ConnectedClient {
+  socket: Socket;
+  sessionId: string | null;
+  userId: string;
+}
+
+const clients = new Map<string, ConnectedClient>();
+
+export function createSocketServer(httpServer: HttpServer, sessionService: SessionService): SocketServer {
+  const io = new SocketServer(httpServer, {
+    cors: {
+      origin: ['http://localhost:5173', 'http://127.0.0.1:5173', 'http://localhost:3000'],
+      methods: ['GET', 'POST'],
+    },
+    pingInterval: 15000,
+    pingTimeout: 30000,
+  });
+
+  io.on('connection', (socket: Socket) => {
+    const client: ConnectedClient = {
+      socket,
+      sessionId: null,
+      userId: 'default',
+    };
+    clients.set(socket.id, client);
+
+    // Ensure default workspace exists
+    const workspaceId = sessionService.ensureDefaultWorkspace(client.userId);
+
+    // Send initial workspaces and sessions
+    socket.emit('workspace.init', {
+      workspaceId,
+      sessions: sessionService.getSessions(workspaceId),
+    });
+
+    // --- Handle client events ---
+
+    socket.on('chat.send', (data: { sessionId: string; content: string }) => {
+      handleChatSend(socket, client, data, sessionService);
+    });
+
+    socket.on('session.create', (data: { workspaceId: string }) => {
+      handleSessionCreate(socket, client, data.workspaceId, sessionService);
+    });
+
+    socket.on('session.resume', (data: { sessionId: string }) => {
+      handleSessionResume(socket, client, data.sessionId, sessionService);
+    });
+
+    socket.on('session.close', (data: { sessionId: string }) => {
+      handleSessionClose(socket, client, data.sessionId, sessionService);
+    });
+
+    socket.on('approval.submit', (data: { sessionId: string; requestId: string; approved: boolean }) => {
+      sessionService.handleApproval(data.sessionId, data.requestId, data.approved);
+    });
+
+    socket.on('disconnect', () => {
+      clients.delete(socket.id);
+    });
+  });
+
+  return io;
+}
+
+function handleChatSend(
+  socket: Socket,
+  client: ConnectedClient,
+  data: { sessionId: string; content: string },
+  sessionService: SessionService,
+): void {
+  const { sessionId, content } = data;
+
+  if (!sessionService.isSessionActive(sessionId)) {
+    socket.emit('error', { sessionId, message: 'Session is not active. Create a new session first.' });
+    return;
+  }
+
+  client.sessionId = sessionId;
+  const msg = sessionService.sendMessage(sessionId, content);
+
+  // Echo back the user message
+  socket.emit('user.message', { id: msg.id, sessionId, content, createdAt: msg.createdAt });
+}
+
+function handleSessionCreate(
+  socket: Socket,
+  client: ConnectedClient,
+  workspaceId: string,
+  sessionService: SessionService,
+): void {
+  const { sessionId, workspacePath } = sessionService.createSession(workspaceId, client.userId);
+  client.sessionId = sessionId;
+
+  socket.emit('session.created', { sessionId, workspaceId, workspacePath });
+
+  // Listen for runtime events and forward to client
+  // This is handled via the SessionService callback wired at startup
+}
+
+function handleSessionResume(
+  socket: Socket,
+  client: ConnectedClient,
+  sessionId: string,
+  sessionService: SessionService,
+): void {
+  const session = sessionService.getSession(sessionId);
+  if (!session) {
+    socket.emit('error', { sessionId, message: 'Session not found' });
+    return;
+  }
+
+  client.sessionId = sessionId;
+  const messages = sessionService.getMessages(sessionId);
+  socket.emit('session.resumed', { sessionId, messages });
+}
+
+function handleSessionClose(
+  socket: Socket,
+  client: ConnectedClient,
+  sessionId: string,
+  sessionService: SessionService,
+): void {
+  sessionService.killSession(sessionId);
+  if (client.sessionId === sessionId) {
+    client.sessionId = null;
+  }
+  socket.emit('session.closed', { sessionId });
+}
+
+/** Bridge between SessionService events and Socket.IO */
+export function wireSessionEvents(io: SocketServer, sessionService: SessionService): void {
+  // We create a wrapper SessionService that wires events to Socket.IO
+  // The session service emits events via its callback, we broadcast them
+
+  const originalCreate = sessionService.createSession.bind(sessionService);
+  // We override by re-creating the service with socket-aware callbacks...
+  // Actually, let's just use the existing callback approach.
+
+  // Events are already wired through the SessionService constructor callbacks.
+  // The callbacks in index.ts will emit to the right socket rooms.
+}
+
+export { clients };
