@@ -21,6 +21,7 @@ export class SessionService {
 
   /** Create a new session in a workspace */
   createSession(workspaceId: string, userId = 'default'): { sessionId: string; workspacePath: string } {
+    console.log(`[SessionService] Creating session: workspaceId=${workspaceId} userId=${userId}`);
     const workspace = db.getWorkspace(workspaceId);
     if (!workspace) throw new Error(`Workspace ${workspaceId} not found`);
 

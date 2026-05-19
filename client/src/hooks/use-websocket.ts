@@ -57,9 +57,26 @@ export function useWebSocket() {
       }
     });
 
-    socket.on('session.closed', () => {
-      store.getState().setActiveSession(null);
-      store.getState().resetChat();
+    socket.on('session.closed', (data: { sessionId: string; reason?: string }) => {
+      const state = store.getState();
+      // Always remove from sidebar list
+      state.setSessions(state.sessions.filter(s => s.id !== data.sessionId));
+
+      if (state.activeSessionId === data.sessionId) {
+        if (data.reason === 'user_requested') {
+          // User explicitly closed the session — reset to welcome page
+          state.setActiveSession(null);
+          state.resetChat();
+        } else {
+          // Process exited unexpectedly — keep the chat view and show error
+          state.addMessage({
+            id: `closed-${Date.now()}`,
+            role: 'system',
+            content: '会话已结束。Claude 进程已退出，请检查 Claude Code CLI 是否正确安装。',
+            createdAt: Date.now(),
+          });
+        }
+      }
     });
 
     // --- User message echo ---
@@ -75,6 +92,10 @@ export function useWebSocket() {
     // --- Assistant streaming ---
     socket.on('assistant.delta', (data: { sessionId: string; delta: string }) => {
       store.getState().appendDelta(data.delta);
+    });
+
+    socket.on('assistant.completed', (_data: { sessionId: string }) => {
+      store.getState().finishStreaming();
     });
 
     // --- Tool calls ---
@@ -125,12 +146,18 @@ export function useWebSocket() {
 
     // --- Error ---
     socket.on('error', (data: { sessionId: string; message: string }) => {
-      store.getState().addMessage({
-        id: `err-${Date.now()}`,
-        role: 'system',
-        content: `Error: ${data.message}`,
-        createdAt: Date.now(),
-      });
+      const state = store.getState();
+      if (state.activeSessionId) {
+        state.addMessage({
+          id: `err-${Date.now()}`,
+          role: 'system',
+          content: `Error: ${data.message}`,
+          createdAt: Date.now(),
+        });
+      } else {
+        // No active session — show as global error on welcome page
+        state.setGlobalError(data.message);
+      }
     });
 
     // --- File updated ---
@@ -163,18 +190,24 @@ export function useWebSocket() {
   const createSession = (workspaceId: string) => {
     if (socketRef.current?.connected) {
       socketRef.current.emit('session.create', { workspaceId });
+    } else {
+      console.warn('[WS] Cannot create session: WebSocket not connected');
     }
   };
 
   const resumeSession = (sessionId: string) => {
     if (socketRef.current?.connected) {
       socketRef.current.emit('session.resume', { sessionId });
+    } else {
+      console.warn('[WS] Cannot resume session: WebSocket not connected');
     }
   };
 
   const closeSession = (sessionId: string) => {
     if (socketRef.current?.connected) {
       socketRef.current.emit('session.close', { sessionId });
+    } else {
+      console.warn('[WS] Cannot close session: WebSocket not connected');
     }
   };
 
@@ -183,6 +216,8 @@ export function useWebSocket() {
       const sessionId = store.getState().activeSessionId;
       socketRef.current.emit('approval.submit', { sessionId, requestId, approved });
       store.getState().clearApproval(requestId);
+    } else {
+      console.warn('[WS] Cannot submit approval: WebSocket not connected');
     }
   };
 

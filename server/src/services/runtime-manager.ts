@@ -1,9 +1,32 @@
-import { spawn, ChildProcess } from 'child_process';
+import { spawn, spawnSync, ChildProcess } from 'child_process';
 import { config } from '../config.js';
 import { StreamParser } from './stream-parser.js';
 import { RuntimeEvent, ClaudeStreamEvent } from '../types/index.js';
 import { v4 as uuid } from 'uuid';
 import fs from 'fs';
+
+let _claudeAvailable: boolean | null = null;
+
+/** Check if the configured Claude CLI is executable. Result is cached. */
+export function isClaudeAvailable(): boolean {
+  if (_claudeAvailable !== null) return _claudeAvailable;
+  try {
+    const result = spawnSync(config.claudePath, ['--version'], {
+      stdio: 'ignore',
+      timeout: 10000,
+      windowsHide: true,
+      shell: process.platform === 'win32',
+    });
+    _claudeAvailable = result.status === 0 && result.error === undefined;
+  } catch {
+    _claudeAvailable = false;
+  }
+  if (!_claudeAvailable) {
+    console.error(`[RuntimeManager] Claude CLI not found or not executable: ${config.claudePath}`);
+    console.error('[RuntimeManager] Install it from: npm install -g @anthropic-ai/claude-code');
+  }
+  return _claudeAvailable;
+}
 
 export interface RuntimeSession {
   sessionId: string;
@@ -30,9 +53,47 @@ export class RuntimeManager {
       fs.mkdirSync(workspacePath, { recursive: true });
     }
 
+    if (!isClaudeAvailable()) {
+      const msg = `Claude CLI not found (${config.claudePath}). Install: npm install -g @anthropic-ai/claude-code`;
+      console.error(`[RuntimeManager] ${msg}`);
+      // Emit error and call onExit asynchronously so callers can finish setup first
+      setImmediate(() => {
+        onEvent({
+          id: uuid(),
+          sessionId,
+          type: 'error',
+          payload: { message: msg },
+          createdAt: Date.now(),
+        });
+        onExit(sessionId);
+      });
+      // Return a dummy runtime session so callers don't crash
+      return {
+        sessionId,
+        workspacePath,
+        proc: null as unknown as ChildProcess,
+        parser: null as unknown as StreamParser,
+        onEvent,
+        onExit,
+        createdAt: Date.now(),
+        heartbeatAt: Date.now(),
+      };
+    }
+
+    console.log(`[RuntimeManager] Spawning Claude: sessionId=${sessionId.slice(0, 8)} cwd=${workspacePath} cmd=${config.claudePath}`);
+
     const parser = new StreamParser();
 
-    const proc = spawn(config.claudePath, ['--output', 'stream-json'], {
+    const proc = spawn(config.claudePath, [
+      '--print',
+      '--output-format', 'stream-json',
+      '--input-format', 'stream-json',
+      '--include-partial-messages',
+      '--replay-user-messages',
+      '--session-id', sessionId,
+      '--no-session-persistence',
+      '--verbose',
+    ], {
       cwd: workspacePath,
       env: {
         ...process.env,
@@ -43,6 +104,7 @@ export class RuntimeManager {
       },
       stdio: ['pipe', 'pipe', 'pipe'],
       windowsHide: true,
+      shell: process.platform === 'win32',
     });
 
     const runtime: RuntimeSession = {
@@ -121,22 +183,40 @@ export class RuntimeManager {
     return runtime;
   }
 
-  /** Send input to the Claude process */
+  /** Send input to the Claude process in stream-json format */
   static write(sessionId: string, text: string): void {
     const session = sessions.get(sessionId);
     if (!session) throw new Error(`Session ${sessionId} not found`);
     if (session.proc.stdin) {
-      session.proc.stdin.write(text + '\n');
+      const msg = JSON.stringify({
+        type: 'user',
+        message: {
+          role: 'user',
+          content: [{ type: 'text', text }],
+        },
+      }) + '\n';
+      session.proc.stdin.write(msg);
       session.heartbeatAt = Date.now();
     }
   }
 
-  /** Send an approval response to the Claude process */
-  static approve(sessionId: string, _requestId: string, approved: boolean): void {
+  /** Send an approval response to the Claude process in stream-json format */
+  static approve(sessionId: string, requestId: string, approved: boolean): void {
     const session = sessions.get(sessionId);
     if (!session) throw new Error(`Session ${sessionId} not found`);
     if (session.proc.stdin) {
-      session.proc.stdin.write(approved ? 'yes\n' : 'no\n');
+      const msg = JSON.stringify({
+        type: 'user',
+        message: {
+          role: 'user',
+          content: [{
+            type: 'tool_result',
+            tool_use_id: requestId,
+            content: approved ? 'approved' : 'denied',
+          }],
+        },
+      }) + '\n';
+      session.proc.stdin.write(msg);
       session.heartbeatAt = Date.now();
     }
   }
@@ -295,6 +375,28 @@ export class RuntimeManager {
           createdAt: Date.now(),
         });
       }
+    });
+
+    // message_stop — end of assistant message
+    runtime.parser.on('message_stop', (_ev: ClaudeStreamEvent) => {
+      RuntimeManager.emitEvent(runtime, {
+        id: uuid(),
+        sessionId: runtime.sessionId,
+        type: 'assistant.completed',
+        payload: {},
+        createdAt: Date.now(),
+      });
+    });
+
+    // result — final turn result (fallback in case message_stop doesn't fire)
+    runtime.parser.on('result', (_ev: ClaudeStreamEvent) => {
+      RuntimeManager.emitEvent(runtime, {
+        id: uuid(),
+        sessionId: runtime.sessionId,
+        type: 'assistant.completed',
+        payload: {},
+        createdAt: Date.now(),
+      });
     });
 
     // error

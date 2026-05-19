@@ -57,10 +57,11 @@ export interface ApprovalRequest {
 export interface ServerToClientEvents {
   'session.created': (data: { sessionId: string; workspaceId: string; workspacePath: string }) => void;
   'session.resumed': (data: { sessionId: string; messages: Message[] }) => void;
-  'session.closed': (data: { sessionId: string }) => void;
+  'session.closed': (data: { sessionId: string; reason?: string }) => void;
   'session.started': (data: { sessionId: string; workspacePath: string }) => void;
   'user.message': (data: { id: string; sessionId: string; content: string; createdAt: number }) => void;
   'assistant.delta': (data: { sessionId: string; delta: string }) => void;
+  'assistant.completed': (data: { sessionId: string }) => void;
   'tool.call': (data: { sessionId: string; toolId: string; tool: string; input: any }) => void;
   'tool.stdout': (data: { sessionId: string; toolId: string; stream: string; delta: string }) => void;
   'tool.result': (data: { sessionId: string; toolId: string; result: any }) => void;

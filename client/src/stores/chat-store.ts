@@ -21,11 +21,15 @@ interface ChatState {
   // Connection
   connected: boolean;
 
+  // Global error (shown when no active session)
+  globalError: string | null;
+
   // Actions
   setActiveSession: (sessionId: string | null) => void;
   setWorkspace: (workspaceId: string) => void;
   setSessions: (sessions: Session[]) => void;
   setConnected: (connected: boolean) => void;
+  setGlobalError: (error: string | null) => void;
 
   addMessage: (msg: UIMessage) => void;
   appendDelta: (delta: string) => void;
@@ -51,11 +55,13 @@ export const useChatStore = create<ChatState>((set, get) => ({
   toolCalls: [],
   pendingApproval: null,
   connected: false,
+  globalError: null,
 
-  setActiveSession: (sessionId) => set({ activeSessionId: sessionId }),
+  setActiveSession: (sessionId) => set({ activeSessionId: sessionId, globalError: null }),
   setWorkspace: (workspaceId) => set({ workspaceId }),
   setSessions: (sessions) => set({ sessions }),
   setConnected: (connected) => set({ connected }),
+  setGlobalError: (globalError) => set({ globalError }),
 
   addMessage: (msg) => {
     set((state) => ({

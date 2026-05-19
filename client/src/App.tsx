@@ -7,40 +7,48 @@ import { useChatStore } from './stores/chat-store';
 
 export default function App() {
   const ws = useWebSocket();
-  const { connected, activeSessionId, pendingApproval, workspaceId } = useChatStore();
+  const { connected, activeSessionId, pendingApproval, workspaceId, globalError } = useChatStore();
   const [creating, setCreating] = useState(false);
 
   const handleCreateSession = useCallback(async () => {
     setCreating(true);
     try {
-      // First, ensure we have a workspace
       let wid = useChatStore.getState().workspaceId;
+      console.log('[App] handleCreateSession: workspaceId from store:', wid);
 
       if (!wid) {
-        // Fetch workspace from API if WebSocket hasn't delivered it yet
+        console.log('[App] No workspaceId, fetching from API...');
         const res = await fetch('/api/workspaces?userId=default');
         const workspaces = await res.json();
         if (workspaces.length > 0) {
           wid = workspaces[0].id;
           useChatStore.getState().setWorkspace(wid);
+          console.log('[App] Using existing workspace:', wid);
         } else {
-          // Create default workspace via API
+          console.log('[App] Creating new workspace...');
           const createRes = await fetch('/api/workspaces', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ name: 'default', userId: 'default' }),
           });
-          const ws = await createRes.json();
-          wid = ws.id;
+          const newWorkspace = await createRes.json();
+          wid = newWorkspace.id;
           useChatStore.getState().setWorkspace(wid);
+          console.log('[App] Created workspace:', wid);
         }
       }
 
       if (wid) {
+        console.log('[App] Calling ws.createSession with workspaceId:', wid);
         ws.createSession(wid);
+      } else {
+        console.error('[App] Failed to obtain workspaceId');
       }
     } catch (err) {
-      console.error('Failed to create session:', err);
+      console.error('[App] Failed to create session:', err);
+      useChatStore.getState().setGlobalError(
+        err instanceof Error ? err.message : '创建会话失败，请检查服务器连接',
+      );
     } finally {
       setCreating(false);
     }
@@ -71,6 +79,15 @@ export default function App() {
                 基于 Claude Code CLI 的多用户 Web 界面。
                 创建会话开始与 Claude 交互，支持流式输出、Tool Call 可视化和 Shell 输出实时展示。
               </p>
+
+              {/* Global error banner */}
+              {globalError && (
+                <div className="p-4 rounded-lg bg-red-900/30 border border-red-700/50 text-red-200 text-sm text-left">
+                  <div className="font-medium mb-1">创建会话失败</div>
+                  <div className="text-red-300/80">{globalError}</div>
+                </div>
+              )}
+
               <button
                 onClick={handleCreateSession}
                 disabled={!connected || creating}

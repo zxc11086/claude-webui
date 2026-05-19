@@ -1,6 +1,8 @@
 import { Server as HttpServer } from 'http';
 import { Server as SocketServer, Socket } from 'socket.io';
+import { config } from '../config.js';
 import { SessionService } from '../services/session-service.js';
+import { isClaudeAvailable } from '../services/runtime-manager.js';
 import { ClientEvent, ServerEvent, RuntimeEvent, Message } from '../types/index.js';
 import { v4 as uuid } from 'uuid';
 
@@ -46,6 +48,13 @@ export function createSocketServer(httpServer: HttpServer, sessionService: Sessi
     });
 
     socket.on('session.create', (data: { workspaceId: string }) => {
+      if (!isClaudeAvailable()) {
+        socket.emit('error', {
+          sessionId: '',
+          message: `Claude CLI (${config.claudePath}) 未找到。请先安装: npm install -g @anthropic-ai/claude-code`,
+        });
+        return;
+      }
       handleSessionCreate(socket, client, data.workspaceId, sessionService);
     });
 
@@ -95,13 +104,12 @@ function handleSessionCreate(
   workspaceId: string,
   sessionService: SessionService,
 ): void {
+  console.log(`[Socket] session.create requested: workspaceId=${workspaceId}, userId=${client.userId}`);
   const { sessionId, workspacePath } = sessionService.createSession(workspaceId, client.userId);
   client.sessionId = sessionId;
+  console.log(`[Socket] session.created: sessionId=${sessionId}, workspacePath=${workspacePath}`);
 
   socket.emit('session.created', { sessionId, workspaceId, workspacePath });
-
-  // Listen for runtime events and forward to client
-  // This is handled via the SessionService callback wired at startup
 }
 
 function handleSessionResume(
@@ -127,11 +135,13 @@ function handleSessionClose(
   sessionId: string,
   sessionService: SessionService,
 ): void {
+  console.log(`[Socket] session.close requested: sessionId=${sessionId}`);
   sessionService.killSession(sessionId);
   if (client.sessionId === sessionId) {
     client.sessionId = null;
   }
-  socket.emit('session.closed', { sessionId });
+  socket.emit('session.closed', { sessionId, reason: 'user_requested' });
+  console.log(`[Socket] session.closed emitted: sessionId=${sessionId}`);
 }
 
 /** Bridge between SessionService events and Socket.IO */

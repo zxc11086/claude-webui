@@ -118,7 +118,7 @@ export function updateSessionStatus(id: string, status: Session['status']): void
 
 export function getSessionsByWorkspace(workspaceId: string): Session[] {
   const rows = db.prepare(
-    'SELECT * FROM sessions WHERE workspace_id = ? ORDER BY updated_at DESC LIMIT 50'
+    'SELECT * FROM sessions WHERE workspace_id = ? AND status = \'active\' ORDER BY updated_at DESC LIMIT 50'
   ).all(workspaceId) as any[];
   return rows.map(row => ({
     id: row.id,

@@ -7,6 +7,7 @@ import { createSocketServer, clients } from './socket/index.js';
 import { createSessionRoutes } from './routes/sessions.js';
 import { createWorkspaceRoutes } from './routes/workspaces.js';
 import { RuntimeEvent } from './types/index.js';
+import { isClaudeAvailable } from './services/runtime-manager.js';
 import { Server as SocketServer } from 'socket.io';
 
 // --- Bootstrap ---
@@ -29,7 +30,7 @@ const sessionService = new SessionService({
     handleRuntimeEvent(io, sessionId, event);
   },
   onSessionClosed(sessionId: string) {
-    io.emit('session.closed', { sessionId });
+    io.emit('session.closed', { sessionId, reason: 'process_exited' });
     // Save accumulated assistant message if any
     const accumulated = messageAccumulators.get(sessionId);
     if (accumulated) {
@@ -143,8 +144,19 @@ function handleRuntimeEvent(io: SocketServer, sessionId: string, event: RuntimeE
       break;
     }
 
+    case 'assistant.completed': {
+      io.emit('assistant.completed', { sessionId });
+      // Save accumulated assistant message
+      const accumulated = messageAccumulators.get(sessionId);
+      if (accumulated) {
+        sessionService.saveAssistantMessage(sessionId, accumulated);
+        messageAccumulators.set(sessionId, '');
+      }
+      break;
+    }
+
     case 'session.closed': {
-      io.emit('session.closed', { sessionId });
+      io.emit('session.closed', { sessionId, reason: 'process_exited' });
       // Finalize accumulated message
       const accumulated = messageAccumulators.get(sessionId);
       if (accumulated) {
@@ -188,6 +200,11 @@ function startServer(port: number, retries = 0): void {
     }
   });
 }
+
+// Pre-flight: check Claude CLI availability
+console.log(`[Claude WebUI Server] Checking Claude CLI: ${config.claudePath}`);
+const claudeOk = isClaudeAvailable();
+console.log(`[Claude WebUI Server] Claude CLI available: ${claudeOk}`);
 
 startServer(config.port);
 
