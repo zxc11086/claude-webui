@@ -2,12 +2,11 @@ import { useState, useCallback } from 'react';
 import { useWebSocket } from './hooks/use-websocket';
 import { Sidebar } from './components/layout/Sidebar';
 import { ChatView } from './components/chat/ChatView';
-import { ApprovalDialog } from './components/tools/ApprovalDialog';
 import { useChatStore } from './stores/chat-store';
 
 export default function App() {
   const ws = useWebSocket();
-  const { connected, activeSessionId, pendingApproval, workspaceId, globalError } = useChatStore();
+  const { connected, activeSessionId, globalError } = useChatStore();
   const [creating, setCreating] = useState(false);
 
   const handleCreateSession = useCallback(async () => {
@@ -21,7 +20,7 @@ export default function App() {
         const res = await fetch('/api/workspaces?userId=default');
         const workspaces = await res.json();
         if (workspaces.length > 0) {
-          wid = workspaces[0].id;
+          wid = workspaces[0].id as string;
           useChatStore.getState().setWorkspace(wid);
           console.log('[App] Using existing workspace:', wid);
         } else {
@@ -32,7 +31,7 @@ export default function App() {
             body: JSON.stringify({ name: 'default', userId: 'default' }),
           });
           const newWorkspace = await createRes.json();
-          wid = newWorkspace.id;
+          wid = newWorkspace.id as string;
           useChatStore.getState().setWorkspace(wid);
           console.log('[App] Created workspace:', wid);
         }
@@ -105,14 +104,6 @@ export default function App() {
         )}
       </main>
 
-      {/* Approval Dialog */}
-      {pendingApproval && (
-        <ApprovalDialog
-          approval={pendingApproval}
-          onApprove={() => ws.submitApproval(pendingApproval.requestId, true)}
-          onDeny={() => ws.submitApproval(pendingApproval.requestId, false)}
-        />
-      )}
     </div>
   );
 }

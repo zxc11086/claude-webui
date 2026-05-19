@@ -3,8 +3,6 @@ import { Server as SocketServer, Socket } from 'socket.io';
 import { config } from '../config.js';
 import { SessionService } from '../services/session-service.js';
 import { isClaudeAvailable } from '../services/runtime-manager.js';
-import { ClientEvent, ServerEvent, RuntimeEvent, Message } from '../types/index.js';
-import { v4 as uuid } from 'uuid';
 
 interface ConnectedClient {
   socket: Socket;
@@ -64,10 +62,6 @@ export function createSocketServer(httpServer: HttpServer, sessionService: Sessi
 
     socket.on('session.close', (data: { sessionId: string }) => {
       handleSessionClose(socket, client, data.sessionId, sessionService);
-    });
-
-    socket.on('approval.submit', (data: { sessionId: string; requestId: string; approved: boolean }) => {
-      sessionService.handleApproval(data.sessionId, data.requestId, data.approved);
     });
 
     socket.on('disconnect', () => {
@@ -143,18 +137,4 @@ function handleSessionClose(
   socket.emit('session.closed', { sessionId, reason: 'user_requested' });
   console.log(`[Socket] session.closed emitted: sessionId=${sessionId}`);
 }
-
-/** Bridge between SessionService events and Socket.IO */
-export function wireSessionEvents(io: SocketServer, sessionService: SessionService): void {
-  // We create a wrapper SessionService that wires events to Socket.IO
-  // The session service emits events via its callback, we broadcast them
-
-  const originalCreate = sessionService.createSession.bind(sessionService);
-  // We override by re-creating the service with socket-aware callbacks...
-  // Actually, let's just use the existing callback approach.
-
-  // Events are already wired through the SessionService constructor callbacks.
-  // The callbacks in index.ts will emit to the right socket rooms.
-}
-
 export { clients };

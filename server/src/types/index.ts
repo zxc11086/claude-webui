@@ -51,8 +51,6 @@ export type RuntimeEventType =
   | 'tool.stdout'
   | 'tool.stderr'
   | 'tool.result'
-  | 'approval.request'
-  | 'approval.response'
   | 'file.updated'
   | 'task.updated'
   | 'error';
@@ -62,7 +60,6 @@ export type RuntimeEventType =
 // Client → Server
 export type ClientEvent =
   | { type: 'chat.send'; sessionId: string; content: string }
-  | { type: 'approval.submit'; sessionId: string; requestId: string; approved: boolean }
   | { type: 'session.create'; workspaceId: string }
   | { type: 'session.resume'; sessionId: string };
 
@@ -76,7 +73,6 @@ export type ServerEvent =
   | { type: 'tool.call'; sessionId: string; toolId: string; tool: string; input: any }
   | { type: 'tool.stdout'; sessionId: string; toolId: string; stream: 'stdout' | 'stderr'; delta: string }
   | { type: 'tool.result'; sessionId: string; toolId: string; result: any }
-  | { type: 'approval.request'; sessionId: string; requestId: string; tool: string; input: any; message: string }
   | { type: 'error'; sessionId: string; message: string }
   | { type: 'file.updated'; sessionId: string; path: string; patch: string };
 

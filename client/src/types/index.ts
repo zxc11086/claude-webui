@@ -44,14 +44,6 @@ export interface ToolCall {
   streams?: { stream: 'stdout' | 'stderr'; text: string }[];
 }
 
-export interface ApprovalRequest {
-  requestId: string;
-  sessionId: string;
-  tool: string;
-  input: any;
-  message: string;
-}
-
 // --- WebSocket event types (client-side) ---
 
 export interface ServerToClientEvents {
@@ -66,7 +58,6 @@ export interface ServerToClientEvents {
   'tool.stdout': (data: { sessionId: string; toolId: string; stream: string; delta: string }) => void;
   'tool.result': (data: { sessionId: string; toolId: string; result: any }) => void;
   'tool.stderr': (data: { sessionId: string; toolId: string; delta: string }) => void;
-  'approval.request': (data: ApprovalRequest) => void;
   'file.updated': (data: { sessionId: string; path: string; patch: string }) => void;
   'error': (data: { sessionId: string; message: string }) => void;
   'workspace.init': (data: { workspaceId: string; sessions: Session[] }) => void;

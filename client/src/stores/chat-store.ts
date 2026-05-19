@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { UIMessage, ToolCall, ApprovalRequest, Session } from '../types/index';
+import { UIMessage, ToolCall, Session } from '../types/index';
 
 interface ChatState {
   // Session
@@ -14,9 +14,6 @@ interface ChatState {
 
   // Tool calls for current session
   toolCalls: ToolCall[];
-
-  // Pending approval
-  pendingApproval: ApprovalRequest | null;
 
   // Connection
   connected: boolean;
@@ -39,13 +36,10 @@ interface ChatState {
   updateToolCall: (toolId: string, update: Partial<ToolCall>) => void;
   appendToolOutput: (toolId: string, stream: 'stdout' | 'stderr', delta: string) => void;
 
-  setPendingApproval: (approval: ApprovalRequest | null) => void;
-  clearApproval: (requestId: string) => void;
-
   resetChat: () => void;
 }
 
-export const useChatStore = create<ChatState>((set, get) => ({
+export const useChatStore = create<ChatState>((set) => ({
   activeSessionId: null,
   workspaceId: null,
   sessions: [],
@@ -53,7 +47,6 @@ export const useChatStore = create<ChatState>((set, get) => ({
   isStreaming: false,
   streamingContent: '',
   toolCalls: [],
-  pendingApproval: null,
   connected: false,
   globalError: null,
 
@@ -148,21 +141,10 @@ export const useChatStore = create<ChatState>((set, get) => ({
     }));
   },
 
-  setPendingApproval: (approval) => set({ pendingApproval: approval }),
-  clearApproval: (requestId) => {
-    set((state) => {
-      if (state.pendingApproval?.requestId === requestId) {
-        return { pendingApproval: null };
-      }
-      return state;
-    });
-  },
-
   resetChat: () => set({
     messages: [],
     toolCalls: [],
     isStreaming: false,
     streamingContent: '',
-    pendingApproval: null,
   }),
 }));

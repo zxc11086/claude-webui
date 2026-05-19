@@ -21,6 +21,9 @@ export const config = {
   sessionTimeout: parseInt(process.env.SESSION_TIMEOUT || '3600000', 10), // 1 hour
   maxSessionsPerUser: parseInt(process.env.MAX_SESSIONS || '5', 10),
 
+  // Skip all permission prompts (passes --dangerously-skip-permissions to Claude CLI)
+  dangerouslySkipPermissions: process.env.DANGEROUSLY_SKIP_PERMISSIONS !== 'false',
+
   // Process limits
   processHeartbeatInterval: 30000, // 30s
   processCleanupInterval: 60000,   // 60s

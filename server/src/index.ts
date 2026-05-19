@@ -116,17 +116,6 @@ function handleRuntimeEvent(io: SocketServer, sessionId: string, event: RuntimeE
       break;
     }
 
-    case 'approval.request': {
-      io.emit('approval.request', {
-        sessionId,
-        requestId: event.payload.requestId,
-        tool: event.payload.tool,
-        input: event.payload.input,
-        message: event.payload.message,
-      });
-      break;
-    }
-
     case 'error': {
       io.emit('error', {
         sessionId,

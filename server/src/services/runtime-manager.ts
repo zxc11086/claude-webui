@@ -84,7 +84,7 @@ export class RuntimeManager {
 
     const parser = new StreamParser();
 
-    const proc = spawn(config.claudePath, [
+    const args = [
       '--print',
       '--output-format', 'stream-json',
       '--input-format', 'stream-json',
@@ -93,7 +93,12 @@ export class RuntimeManager {
       '--session-id', sessionId,
       '--no-session-persistence',
       '--verbose',
-    ], {
+    ];
+    if (config.dangerouslySkipPermissions) {
+      args.push('--dangerously-skip-permissions');
+    }
+
+    const proc = spawn(config.claudePath, args, {
       cwd: workspacePath,
       env: {
         ...process.env,
@@ -193,27 +198,6 @@ export class RuntimeManager {
         message: {
           role: 'user',
           content: [{ type: 'text', text }],
-        },
-      }) + '\n';
-      session.proc.stdin.write(msg);
-      session.heartbeatAt = Date.now();
-    }
-  }
-
-  /** Send an approval response to the Claude process in stream-json format */
-  static approve(sessionId: string, requestId: string, approved: boolean): void {
-    const session = sessions.get(sessionId);
-    if (!session) throw new Error(`Session ${sessionId} not found`);
-    if (session.proc.stdin) {
-      const msg = JSON.stringify({
-        type: 'user',
-        message: {
-          role: 'user',
-          content: [{
-            type: 'tool_result',
-            tool_use_id: requestId,
-            content: approved ? 'approved' : 'denied',
-          }],
         },
       }) + '\n';
       session.proc.stdin.write(msg);

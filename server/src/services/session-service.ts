@@ -87,11 +87,6 @@ export class SessionService {
     return msg;
   }
 
-  /** Handle approval request */
-  handleApproval(sessionId: string, requestId: string, approved: boolean): void {
-    RuntimeManager.approve(sessionId, requestId, approved);
-  }
-
   /** Save an event as a message if it's significant */
   saveEventAsMessage(sessionId: string, event: RuntimeEvent): void {
     if (event.type === 'assistant.delta') {

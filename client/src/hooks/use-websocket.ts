@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { useChatStore } from '../stores/chat-store';
-import { ServerToClientEvents, ToolCall, Session } from '../types/index';
+import { ServerToClientEvents, Session } from '../types/index';
 
 const SOCKET_URL = import.meta.env.VITE_WS_URL || 'http://localhost:3001';
 
@@ -39,8 +39,6 @@ export function useWebSocket() {
     socket.on('session.created', (data: { sessionId: string; workspaceId: string; workspacePath: string }) => {
       store.getState().setActiveSession(data.sessionId);
       store.getState().resetChat();
-      // Refresh sessions list
-      fetchSessions(store, socket);
     });
 
     socket.on('session.resumed', (data: { sessionId: string; messages: any[] }) => {
@@ -133,17 +131,6 @@ export function useWebSocket() {
       // (Claude sends content after tool results)
     });
 
-    // --- Approval ---
-    socket.on('approval.request', (data: any) => {
-      store.getState().setPendingApproval({
-        requestId: data.requestId,
-        sessionId: data.sessionId,
-        tool: data.tool,
-        input: data.input,
-        message: data.message,
-      });
-    });
-
     // --- Error ---
     socket.on('error', (data: { sessionId: string; message: string }) => {
       const state = store.getState();
@@ -211,26 +198,10 @@ export function useWebSocket() {
     }
   };
 
-  const submitApproval = (requestId: string, approved: boolean) => {
-    if (socketRef.current?.connected) {
-      const sessionId = store.getState().activeSessionId;
-      socketRef.current.emit('approval.submit', { sessionId, requestId, approved });
-      store.getState().clearApproval(requestId);
-    } else {
-      console.warn('[WS] Cannot submit approval: WebSocket not connected');
-    }
-  };
-
   return {
     sendMessage,
     createSession,
     resumeSession,
     closeSession,
-    submitApproval,
   };
-}
-
-async function fetchSessions(store: any, socket: any) {
-  // Sessions are refreshed by re-requesting or getting from state
-  // For simplicity, the server sends session lists via workspace.init
 }
