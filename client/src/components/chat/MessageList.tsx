@@ -30,18 +30,6 @@ export function MessageList() {
         <MessageItem key={msg.id} message={msg} />
       ))}
 
-      {/* Streaming indicator */}
-      {isStreaming && (
-        <div className="flex items-center gap-2 text-sm text-muted-foreground px-1">
-          <div className="flex gap-1">
-            <span className="w-2 h-2 rounded-full bg-primary animate-pulse-dot" style={{ animationDelay: '0ms' }} />
-            <span className="w-2 h-2 rounded-full bg-primary animate-pulse-dot" style={{ animationDelay: '200ms' }} />
-            <span className="w-2 h-2 rounded-full bg-primary animate-pulse-dot" style={{ animationDelay: '400ms' }} />
-          </div>
-          <span>Claude 正在思考...</span>
-        </div>
-      )}
-
       <div ref={bottomRef} />
     </div>
   );

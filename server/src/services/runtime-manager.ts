@@ -269,19 +269,11 @@ export class RuntimeManager {
       RuntimeManager.dispatchInner(runtime, inner);
     });
 
-    // assistant block
+    // assistant block - only handle tool_use, text is handled by content_block_delta
     runtime.parser.on('assistant', (ev: ClaudeStreamEvent) => {
       if (ev.message?.content) {
         for (const block of ev.message.content) {
-          if (block.type === 'text' && block.text) {
-            RuntimeManager.emitEvent(runtime, {
-              id: uuid(),
-              sessionId: runtime.sessionId,
-              type: 'assistant.delta',
-              payload: { delta: block.text },
-              createdAt: Date.now(),
-            });
-          } else if (block.type === 'tool_use') {
+          if (block.type === 'tool_use') {
             RuntimeManager.emitEvent(runtime, {
               id: uuid(),
               sessionId: runtime.sessionId,
@@ -361,26 +353,39 @@ export class RuntimeManager {
       }
     });
 
+    // Track if we've already sent completion for this turn
+    let completionSent = false;
+
     // message_stop — end of assistant message
     runtime.parser.on('message_stop', (_ev: ClaudeStreamEvent) => {
-      RuntimeManager.emitEvent(runtime, {
-        id: uuid(),
-        sessionId: runtime.sessionId,
-        type: 'assistant.completed',
-        payload: {},
-        createdAt: Date.now(),
-      });
+      if (!completionSent) {
+        completionSent = true;
+        RuntimeManager.emitEvent(runtime, {
+          id: uuid(),
+          sessionId: runtime.sessionId,
+          type: 'assistant.completed',
+          payload: {},
+          createdAt: Date.now(),
+        });
+        // Reset for next turn
+        setTimeout(() => { completionSent = false; }, 100);
+      }
     });
 
     // result — final turn result (fallback in case message_stop doesn't fire)
     runtime.parser.on('result', (_ev: ClaudeStreamEvent) => {
-      RuntimeManager.emitEvent(runtime, {
-        id: uuid(),
-        sessionId: runtime.sessionId,
-        type: 'assistant.completed',
-        payload: {},
-        createdAt: Date.now(),
-      });
+      if (!completionSent) {
+        completionSent = true;
+        RuntimeManager.emitEvent(runtime, {
+          id: uuid(),
+          sessionId: runtime.sessionId,
+          type: 'assistant.completed',
+          payload: {},
+          createdAt: Date.now(),
+        });
+        // Reset for next turn
+        setTimeout(() => { completionSent = false; }, 100);
+      }
     });
 
     // error

@@ -1,5 +1,5 @@
 import { useState, useRef, KeyboardEvent } from 'react';
-import { Send, Loader2 } from 'lucide-react';
+import { Send } from 'lucide-react';
 
 interface ChatInputProps {
   onSend: (content: string) => void;
@@ -47,7 +47,7 @@ export function ChatInput({ onSend, disabled, isStreaming }: ChatInputProps) {
             onChange={handleInput}
             onKeyDown={handleKeyDown}
             placeholder={disabled ? '请先创建会话...' : '输入消息，Enter 发送，Shift+Enter 换行...'}
-            disabled={disabled}
+            disabled={disabled || isStreaming}
             rows={1}
             className="flex-1 bg-transparent border-none outline-none resize-none text-sm text-foreground placeholder:text-muted-foreground disabled:opacity-50"
           />
@@ -56,11 +56,7 @@ export function ChatInput({ onSend, disabled, isStreaming }: ChatInputProps) {
             disabled={!input.trim() || disabled || isStreaming}
             className="flex-shrink-0 p-2 rounded-lg bg-primary text-primary-foreground hover:opacity-90 disabled:opacity-30 transition-opacity"
           >
-            {isStreaming ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
-            ) : (
-              <Send className="w-4 h-4" />
-            )}
+            <Send className="w-4 h-4" />
           </button>
         </div>
         <p className="text-xs text-muted-foreground text-center mt-2">

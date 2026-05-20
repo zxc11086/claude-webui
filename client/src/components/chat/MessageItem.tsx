@@ -11,6 +11,7 @@ interface MessageItemProps {
 
 export function MessageItem({ message }: MessageItemProps) {
   const { role, content, createdAt, isStreaming } = message;
+  const isWaiting = role === 'assistant' && content === '' && !isStreaming;
 
   const iconMap = {
     user: <User className="w-5 h-5" />,
@@ -67,7 +68,16 @@ export function MessageItem({ message }: MessageItemProps) {
                 : 'bg-red-900/10 border border-red-900/30 text-red-300'
           }
         `}>
-          {role === 'assistant' || role === 'user' ? (
+          {isWaiting ? (
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <div className="flex gap-1">
+                <span className="w-2 h-2 rounded-full bg-primary animate-pulse" style={{ animationDelay: '0ms' }} />
+                <span className="w-2 h-2 rounded-full bg-primary animate-pulse" style={{ animationDelay: '200ms' }} />
+                <span className="w-2 h-2 rounded-full bg-primary animate-pulse" style={{ animationDelay: '400ms' }} />
+              </div>
+              <span>正在思考中...</span>
+            </div>
+          ) : role === 'assistant' || role === 'user' ? (
             <div className="markdown-body">
               <ReactMarkdown
                 components={{

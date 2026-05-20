@@ -98,6 +98,16 @@ export function useWebSocket() {
         content: data.content,
         createdAt: data.createdAt,
       });
+      
+      // Add placeholder assistant message with "thinking" indicator
+      store.getState().addMessage({
+        id: `waiting-${Date.now()}`,
+        role: 'assistant',
+        content: '',
+        createdAt: Date.now(),
+        isStreaming: false,
+        toolCalls: [],
+      });
     });
 
     // --- Assistant streaming ---

@@ -11,6 +11,7 @@ interface ChatState {
   messages: UIMessage[];
   isStreaming: boolean;
   streamingContent: string;
+  isWaitingResponse: boolean;
 
   // Tool calls for current session
   toolCalls: ToolCall[];
@@ -46,6 +47,7 @@ export const useChatStore = create<ChatState>((set) => ({
   messages: [],
   isStreaming: false,
   streamingContent: '',
+  isWaitingResponse: false,
   toolCalls: [],
   connected: false,
   globalError: null,
@@ -59,26 +61,44 @@ export const useChatStore = create<ChatState>((set) => ({
   addMessage: (msg) => {
     set((state) => ({
       messages: [...state.messages, msg],
+      isWaitingResponse: msg.role === 'user' ? true : state.isWaitingResponse,
     }));
   },
 
   appendDelta: (delta) => {
     set((state) => {
       if (!state.isStreaming) {
-        // Start a new streaming message
-        const newMsg: UIMessage = {
-          id: `stream-${Date.now()}`,
-          role: 'assistant',
-          content: delta,
-          createdAt: Date.now(),
-          isStreaming: true,
-          toolCalls: [],
-        };
-        return {
-          isStreaming: true,
-          streamingContent: delta,
-          messages: [...state.messages, newMsg],
-        };
+        // Check if there's a waiting placeholder message
+        const msgs = [...state.messages];
+        const lastMsg = msgs[msgs.length - 1];
+        
+        if (lastMsg && lastMsg.role === 'assistant' && lastMsg.content === '') {
+          // Replace placeholder with actual content
+          lastMsg.content = delta;
+          lastMsg.isStreaming = true;
+          return {
+            isStreaming: true,
+            streamingContent: delta,
+            isWaitingResponse: false,
+            messages: msgs,
+          };
+        } else {
+          // Start a new streaming message
+          const newMsg: UIMessage = {
+            id: `stream-${Date.now()}`,
+            role: 'assistant',
+            content: delta,
+            createdAt: Date.now(),
+            isStreaming: true,
+            toolCalls: [],
+          };
+          return {
+            isStreaming: true,
+            streamingContent: delta,
+            isWaitingResponse: false,
+            messages: [...state.messages, newMsg],
+          };
+        }
       }
       // Append to existing streaming message
       const newContent = state.streamingContent + delta;
@@ -146,5 +166,6 @@ export const useChatStore = create<ChatState>((set) => ({
     toolCalls: [],
     isStreaming: false,
     streamingContent: '',
+    isWaitingResponse: false,
   }),
 }));
