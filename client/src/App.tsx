@@ -1,6 +1,7 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useWebSocket } from './hooks/use-websocket';
 import { useAuthStore } from './stores/auth-store';
+import { useThemeStore } from './stores/theme-store';
 import { LoginForm } from './components/auth/LoginForm';
 import { AdminPanel } from './components/admin/AdminPanel';
 import { Sidebar } from './components/layout/Sidebar';
@@ -15,6 +16,11 @@ export default function App() {
   const { connected, activeSessionId, globalError } = useChatStore();
   const [creating, setCreating] = useState(false);
   const [showAdmin, setShowAdmin] = useState(false);
+  const { theme, setTheme } = useThemeStore();
+
+  useEffect(() => {
+    setTheme(theme);
+  }, [theme, setTheme]);
 
   const handleCreateSession = useCallback(async () => {
     setCreating(true);

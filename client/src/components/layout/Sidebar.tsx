@@ -1,7 +1,8 @@
 import { useChatStore } from '../../stores/chat-store';
 import { useAuthStore } from '../../stores/auth-store';
+import { useThemeStore } from '../../stores/theme-store';
 import { formatDate, truncate } from '../../lib/utils';
-import { Plus, MessageSquare, Trash2, Terminal, FolderOpen, LogOut, Shield } from 'lucide-react';
+import { Plus, MessageSquare, Trash2, Terminal, FolderOpen, LogOut, Shield, Sun, Moon } from 'lucide-react';
 
 interface SidebarProps {
   ws: {
@@ -21,6 +22,7 @@ export function Sidebar({ ws, onLogout, onOpenAdmin }: SidebarProps) {
     connected,
   } = useChatStore();
   const user = useAuthStore((state) => state.user);
+  const { theme, toggleTheme } = useThemeStore();
 
   return (
     <aside className="w-64 flex-shrink-0 border-r border-border bg-card flex flex-col">
@@ -109,6 +111,13 @@ export function Sidebar({ ws, onLogout, onOpenAdmin }: SidebarProps) {
             )}
           </div>
           <div className="flex gap-2">
+            <button
+              onClick={toggleTheme}
+              className="flex items-center justify-center p-2 hover:bg-accent rounded transition-colors text-muted-foreground hover:text-foreground"
+              title={theme === 'dark' ? '切换到亮色模式' : '切换到暗色模式'}
+            >
+              {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+            </button>
             {user?.role === 'admin' && onOpenAdmin && (
               <button
                 onClick={onOpenAdmin}
