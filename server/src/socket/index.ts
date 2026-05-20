@@ -17,12 +17,23 @@ const authService = new AuthService();
 export function createSocketServer(httpServer: HttpServer, sessionService: SessionService): SocketServer {
   const io = new SocketServer(httpServer, {
     cors: {
-      origin: ['http://localhost:5173', 'http://127.0.0.1:5173', 'http://localhost:3000', 'http://localhost:5174'],
+      origin: (origin, callback) => {
+        // Allow requests with no origin
+        if (!origin) return callback(null, true);
+        
+        // Allow localhost on any port
+        if (origin.match(/^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/)) {
+          return callback(null, true);
+        }
+        
+        callback(new Error('Not allowed by CORS'));
+      },
       methods: ['GET', 'POST'],
       credentials: true,
     },
     pingInterval: 15000,
     pingTimeout: 30000,
+    transports: ['websocket', 'polling'],
   });
 
   io.use((socket, next) => {

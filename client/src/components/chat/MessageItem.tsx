@@ -1,9 +1,15 @@
 import ReactMarkdown from 'react-markdown';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
-import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import { oneDark, oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import remarkGfm from 'remark-gfm';
+import remarkMath from 'remark-math';
+import rehypeKatex from 'rehype-katex';
+import rehypeRaw from 'rehype-raw';
 import { UIMessage } from '../../types/index';
 import { formatTime } from '../../lib/utils';
 import { Bot, User, Wrench, AlertCircle } from 'lucide-react';
+import { useThemeStore } from '../../stores/theme-store';
+import 'katex/dist/katex.min.css';
 
 interface MessageItemProps {
   message: UIMessage;
@@ -12,6 +18,7 @@ interface MessageItemProps {
 export function MessageItem({ message }: MessageItemProps) {
   const { role, content, createdAt, isStreaming } = message;
   const isWaiting = role === 'assistant' && content === '' && !isStreaming;
+  const { theme } = useThemeStore();
 
   const iconMap = {
     user: <User className="w-5 h-5" />,
@@ -80,6 +87,8 @@ export function MessageItem({ message }: MessageItemProps) {
           ) : role === 'assistant' || role === 'user' ? (
             <div className="markdown-body">
               <ReactMarkdown
+                remarkPlugins={[remarkGfm, remarkMath]}
+                rehypePlugins={[rehypeKatex, rehypeRaw]}
                 components={{
                   code({ node, className, children, ...props }) {
                     const match = /language-(\w+)/.exec(className || '');
@@ -96,16 +105,71 @@ export function MessageItem({ message }: MessageItemProps) {
 
                     return (
                       <SyntaxHighlighter
-                        style={oneDark}
+                        style={theme === 'light' ? oneLight : oneDark}
                         language={match?.[1] || 'text'}
                         PreTag="div"
                         customStyle={{
                           borderRadius: '0.5rem',
                           fontSize: '0.8125rem',
+                          margin: '0.5rem 0',
                         }}
                       >
                         {codeStr}
                       </SyntaxHighlighter>
+                    );
+                  },
+                  table({ children }) {
+                    return (
+                      <div className="overflow-x-auto my-4">
+                        <table className="min-w-full border-collapse">
+                          {children}
+                        </table>
+                      </div>
+                    );
+                  },
+                  th({ children }) {
+                    return (
+                      <th className="border border-border px-3 py-2 bg-muted font-semibold text-left">
+                        {children}
+                      </th>
+                    );
+                  },
+                  td({ children }) {
+                    return (
+                      <td className="border border-border px-3 py-2">
+                        {children}
+                      </td>
+                    );
+                  },
+                  a({ href, children }) {
+                    return (
+                      <a
+                        href={href}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-primary hover:underline"
+                      >
+                        {children}
+                      </a>
+                    );
+                  },
+                  blockquote({ children }) {
+                    return (
+                      <blockquote className="border-l-4 border-primary pl-4 my-4 italic text-muted-foreground">
+                        {children}
+                      </blockquote>
+                    );
+                  },
+                  hr() {
+                    return <hr className="my-4 border-border" />;
+                  },
+                  img({ src, alt }) {
+                    return (
+                      <img
+                        src={src}
+                        alt={alt}
+                        className="max-w-full h-auto rounded-lg my-4"
+                      />
                     );
                   },
                 }}
