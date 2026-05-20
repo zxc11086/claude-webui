@@ -9,7 +9,7 @@ interface ChatViewProps {
 }
 
 export function ChatView({ ws }: ChatViewProps) {
-  const { activeSessionId, isStreaming } = useChatStore();
+  const { activeSessionId, isStreaming, isWaitingResponse } = useChatStore();
 
   const handleSend = (content: string) => {
     if (activeSessionId) {
@@ -29,6 +29,7 @@ export function ChatView({ ws }: ChatViewProps) {
         onSend={handleSend}
         disabled={!activeSessionId}
         isStreaming={isStreaming}
+        isWaitingResponse={isWaitingResponse}
       />
     </div>
   );
