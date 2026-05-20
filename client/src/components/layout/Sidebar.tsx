@@ -1,6 +1,7 @@
 import { useChatStore } from '../../stores/chat-store';
+import { useAuthStore } from '../../stores/auth-store';
 import { formatDate, truncate } from '../../lib/utils';
-import { Plus, MessageSquare, Trash2, Terminal, FolderOpen } from 'lucide-react';
+import { Plus, MessageSquare, Trash2, Terminal, FolderOpen, LogOut, Shield } from 'lucide-react';
 
 interface SidebarProps {
   ws: {
@@ -8,15 +9,18 @@ interface SidebarProps {
     resumeSession: (sessionId: string) => void;
     closeSession: (sessionId: string) => void;
   };
+  onLogout: () => void;
+  onOpenAdmin?: () => void;
 }
 
-export function Sidebar({ ws }: SidebarProps) {
+export function Sidebar({ ws, onLogout, onOpenAdmin }: SidebarProps) {
   const {
     activeSessionId,
     sessions,
     workspaceId,
     connected,
   } = useChatStore();
+  const user = useAuthStore((state) => state.user);
 
   return (
     <aside className="w-64 flex-shrink-0 border-r border-border bg-card flex flex-col">
@@ -86,14 +90,44 @@ export function Sidebar({ ws }: SidebarProps) {
       </div>
 
       {/* Footer */}
-      <div className="p-3 border-t border-border">
+      <div className="p-3 border-t border-border space-y-2">
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
           <div className={`w-2 h-2 rounded-full ${connected ? 'bg-green-500' : 'bg-red-500'}`} />
           {connected ? '已连接' : '未连接'}
         </div>
-        <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1">
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
           <FolderOpen className="w-3 h-3" />
           <span className="truncate">default</span>
+        </div>
+        <div className="pt-2 border-t border-border space-y-2">
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <div className="flex-1 truncate">{user?.email}</div>
+            {user?.role === 'admin' && (
+              <span className="px-2 py-0.5 bg-purple-500/20 text-purple-300 rounded text-xs border border-purple-500/30">
+                管理员
+              </span>
+            )}
+          </div>
+          <div className="flex gap-2">
+            {user?.role === 'admin' && onOpenAdmin && (
+              <button
+                onClick={onOpenAdmin}
+                className="flex-1 flex items-center justify-center gap-1 p-2 hover:bg-accent rounded transition-colors text-xs text-muted-foreground hover:text-foreground"
+                title="管理面板"
+              >
+                <Shield className="w-4 h-4" />
+                <span>管理</span>
+              </button>
+            )}
+            <button
+              onClick={onLogout}
+              className="flex-1 flex items-center justify-center gap-1 p-2 hover:bg-accent rounded transition-colors text-xs text-muted-foreground hover:text-foreground"
+              title="退出登录"
+            >
+              <LogOut className="w-4 h-4" />
+              <span>退出</span>
+            </button>
+          </div>
         </div>
       </div>
     </aside>

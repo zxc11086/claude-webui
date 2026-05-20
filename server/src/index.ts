@@ -6,6 +6,8 @@ import { SessionService } from './services/session-service.js';
 import { createSocketServer, clients } from './socket/index.js';
 import { createSessionRoutes } from './routes/sessions.js';
 import { createWorkspaceRoutes } from './routes/workspaces.js';
+import { createAuthRoutes } from './routes/auth.js';
+import { createAdminRoutes } from './routes/admin.js';
 import { RuntimeEvent } from './types/index.js';
 import { isClaudeAvailable } from './services/runtime-manager.js';
 import { Server as SocketServer } from 'socket.io';
@@ -14,7 +16,10 @@ import { Server as SocketServer } from 'socket.io';
 
 const app = express();
 app.use(cors({
-  origin: ['http://localhost:5173', 'http://127.0.0.1:5173', 'http://localhost:3000'],
+  origin: ['http://localhost:5173', 'http://127.0.0.1:5173', 'http://localhost:3000', 'http://localhost:5174'],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
 }));
 app.use(express.json());
 
@@ -46,6 +51,8 @@ const io = createSocketServer(httpServer, sessionService);
 
 // --- REST API ---
 
+app.use('/api/auth', createAuthRoutes());
+app.use('/api/admin', createAdminRoutes());
 app.use('/api/sessions', createSessionRoutes(sessionService));
 app.use('/api/workspaces', createWorkspaceRoutes());
 

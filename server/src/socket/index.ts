@@ -2,6 +2,7 @@ import { Server as HttpServer } from 'http';
 import { Server as SocketServer, Socket } from 'socket.io';
 import { config } from '../config.js';
 import { SessionService } from '../services/session-service.js';
+import { AuthService } from '../services/auth-service.js';
 import { isClaudeAvailable } from '../services/runtime-manager.js';
 
 interface ConnectedClient {
@@ -11,27 +12,45 @@ interface ConnectedClient {
 }
 
 const clients = new Map<string, ConnectedClient>();
+const authService = new AuthService();
 
 export function createSocketServer(httpServer: HttpServer, sessionService: SessionService): SocketServer {
   const io = new SocketServer(httpServer, {
     cors: {
-      origin: ['http://localhost:5173', 'http://127.0.0.1:5173', 'http://localhost:3000'],
+      origin: ['http://localhost:5173', 'http://127.0.0.1:5173', 'http://localhost:3000', 'http://localhost:5174'],
       methods: ['GET', 'POST'],
+      credentials: true,
     },
     pingInterval: 15000,
     pingTimeout: 30000,
   });
 
+  io.use((socket, next) => {
+    const token = socket.handshake.auth.token;
+    if (!token) {
+      return next(new Error('Authentication required'));
+    }
+
+    try {
+      const payload = authService.verifyToken(token);
+      (socket as any).userId = payload.userId;
+      next();
+    } catch (err) {
+      next(new Error('Invalid token'));
+    }
+  });
+
   io.on('connection', (socket: Socket) => {
+    const userId = (socket as any).userId;
     const client: ConnectedClient = {
       socket,
       sessionId: null,
-      userId: 'default',
+      userId,
     };
     clients.set(socket.id, client);
 
     // Ensure default workspace exists
-    const workspaceId = sessionService.ensureDefaultWorkspace(client.userId);
+    const workspaceId = sessionService.ensureDefaultWorkspace(userId);
 
     // Send initial workspaces and sessions
     socket.emit('workspace.init', {

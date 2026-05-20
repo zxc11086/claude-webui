@@ -4,6 +4,7 @@ export interface User {
   id: string;
   email: string;
   passwordHash: string;
+  role: 'admin' | 'user';
   createdAt: number;
 }
 
@@ -54,6 +55,33 @@ export type RuntimeEventType =
   | 'file.updated'
   | 'task.updated'
   | 'error';
+
+// --- Auth ---
+
+export interface AuthPayload {
+  userId: string;
+  email: string;
+  role: 'admin' | 'user';
+}
+
+export interface LoginRequest {
+  email: string;
+  password: string;
+}
+
+export interface RegisterRequest {
+  email: string;
+  password: string;
+}
+
+export interface AuthResponse {
+  token: string;
+  user: {
+    id: string;
+    email: string;
+    role: 'admin' | 'user';
+  };
+}
 
 // --- WebSocket Protocol ---
 

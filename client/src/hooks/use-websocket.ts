@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { useChatStore } from '../stores/chat-store';
+import { useAuthStore } from '../stores/auth-store';
 import { ServerToClientEvents, Session } from '../types/index';
 
 const SOCKET_URL = import.meta.env.VITE_WS_URL || 'http://localhost:3001';
@@ -8,13 +9,25 @@ const SOCKET_URL = import.meta.env.VITE_WS_URL || 'http://localhost:3001';
 export function useWebSocket() {
   const socketRef = useRef<Socket | null>(null);
   const store = useChatStore;
+  const token = useAuthStore((state) => state.token);
 
   useEffect(() => {
+    if (!token) {
+      if (socketRef.current) {
+        socketRef.current.disconnect();
+        socketRef.current = null;
+      }
+      return;
+    }
+
     const socket: Socket<ServerToClientEvents> = io(SOCKET_URL, {
       transports: ['websocket', 'polling'],
       reconnection: true,
       reconnectionDelay: 1000,
       reconnectionAttempts: 10,
+      auth: {
+        token,
+      },
     });
 
     socketRef.current = socket;
@@ -166,7 +179,7 @@ export function useWebSocket() {
       socket.disconnect();
       socketRef.current = null;
     };
-  }, []);
+  }, [token]);
 
   const sendMessage = (content: string, sessionId: string) => {
     if (socketRef.current?.connected) {

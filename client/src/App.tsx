@@ -1,13 +1,20 @@
 import { useState, useCallback } from 'react';
 import { useWebSocket } from './hooks/use-websocket';
+import { useAuthStore } from './stores/auth-store';
+import { LoginForm } from './components/auth/LoginForm';
+import { AdminPanel } from './components/admin/AdminPanel';
 import { Sidebar } from './components/layout/Sidebar';
 import { ChatView } from './components/chat/ChatView';
 import { useChatStore } from './stores/chat-store';
 
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+
 export default function App() {
+  const { isAuthenticated, token, logout, user } = useAuthStore();
   const ws = useWebSocket();
   const { connected, activeSessionId, globalError } = useChatStore();
   const [creating, setCreating] = useState(false);
+  const [showAdmin, setShowAdmin] = useState(false);
 
   const handleCreateSession = useCallback(async () => {
     setCreating(true);
@@ -17,7 +24,11 @@ export default function App() {
 
       if (!wid) {
         console.log('[App] No workspaceId, fetching from API...');
-        const res = await fetch('/api/workspaces?userId=default');
+        const res = await fetch(`${API_URL}/api/workspaces`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+        });
         const workspaces = await res.json();
         if (workspaces.length > 0) {
           wid = workspaces[0].id as string;
@@ -25,10 +36,13 @@ export default function App() {
           console.log('[App] Using existing workspace:', wid);
         } else {
           console.log('[App] Creating new workspace...');
-          const createRes = await fetch('/api/workspaces', {
+          const createRes = await fetch(`${API_URL}/api/workspaces`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ name: 'default', userId: 'default' }),
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`,
+            },
+            body: JSON.stringify({ name: 'default' }),
           });
           const newWorkspace = await createRes.json();
           wid = newWorkspace.id as string;
@@ -51,14 +65,21 @@ export default function App() {
     } finally {
       setCreating(false);
     }
-  }, [ws]);
+  }, [ws, token]);
+
+  if (!isAuthenticated) {
+    return <LoginForm />;
+  }
 
   return (
-    <div className="flex h-screen w-screen overflow-hidden">
-      {/* Sidebar */}
-      <Sidebar
-        ws={ws}
-      />
+    <>
+      <div className="flex h-screen w-screen overflow-hidden">
+        {/* Sidebar */}
+        <Sidebar
+          ws={ws}
+          onLogout={logout}
+          onOpenAdmin={user?.role === 'admin' ? () => setShowAdmin(true) : undefined}
+        />
 
       {/* Main area */}
       <main className="flex-1 flex flex-col min-w-0 bg-background">
@@ -105,5 +126,8 @@ export default function App() {
       </main>
 
     </div>
+
+    {showAdmin && <AdminPanel onClose={() => setShowAdmin(false)} />}
+  </>
   );
 }

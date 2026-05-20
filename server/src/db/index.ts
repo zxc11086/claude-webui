@@ -18,12 +18,21 @@ db.pragma('foreign_keys = ON');
 // --- Schema ---
 
 db.exec(`
+  CREATE TABLE IF NOT EXISTS users (
+    id TEXT PRIMARY KEY,
+    email TEXT UNIQUE NOT NULL,
+    password_hash TEXT NOT NULL,
+    role TEXT NOT NULL DEFAULT 'user',
+    created_at INTEGER NOT NULL DEFAULT (unixepoch() * 1000)
+  );
+
   CREATE TABLE IF NOT EXISTS workspaces (
     id TEXT PRIMARY KEY,
     user_id TEXT NOT NULL DEFAULT 'default',
     name TEXT NOT NULL,
     path TEXT NOT NULL,
-    created_at INTEGER NOT NULL DEFAULT (unixepoch() * 1000)
+    created_at INTEGER NOT NULL DEFAULT (unixepoch() * 1000),
+    FOREIGN KEY (user_id) REFERENCES users(id)
   );
 
   CREATE TABLE IF NOT EXISTS sessions (
@@ -46,6 +55,7 @@ db.exec(`
 
   CREATE INDEX IF NOT EXISTS idx_messages_session ON messages(session_id, created_at);
   CREATE INDEX IF NOT EXISTS idx_sessions_workspace ON sessions(workspace_id);
+  CREATE INDEX IF NOT EXISTS idx_workspaces_user ON workspaces(user_id);
 `);
 
 // --- Workspace queries ---
