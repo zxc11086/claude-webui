@@ -44,6 +44,7 @@ export function useWebSocket() {
 
     // --- Workspace init ---
     socket.on('workspace.init', (data: { workspaceId: string; sessions: Session[] }) => {
+      console.log('[WS] workspace.init received:', data.sessions.length, 'sessions');
       store.getState().setWorkspace(data.workspaceId);
       store.getState().setSessions(data.sessions);
     });

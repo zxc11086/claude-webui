@@ -39,6 +39,7 @@ db.exec(`
     id TEXT PRIMARY KEY,
     workspace_id TEXT NOT NULL,
     status TEXT NOT NULL DEFAULT 'active',
+    title TEXT,
     created_at INTEGER NOT NULL DEFAULT (unixepoch() * 1000),
     updated_at INTEGER NOT NULL DEFAULT (unixepoch() * 1000),
     FOREIGN KEY (workspace_id) REFERENCES workspaces(id)
@@ -102,10 +103,10 @@ export function getWorkspacesByUser(userId: string): Workspace[] {
 
 export function createSession(session: Session): Session {
   const stmt = db.prepare(`
-    INSERT INTO sessions (id, workspace_id, status, created_at, updated_at)
-    VALUES (?, ?, ?, ?, ?)
+    INSERT INTO sessions (id, workspace_id, status, title, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?)
   `);
-  stmt.run(session.id, session.workspaceId, session.status, session.createdAt, session.updatedAt);
+  stmt.run(session.id, session.workspaceId, session.status, session.title || null, session.createdAt, session.updatedAt);
   return session;
 }
 
@@ -116,6 +117,7 @@ export function getSession(id: string): Session | undefined {
     id: row.id,
     workspaceId: row.workspace_id,
     status: row.status,
+    title: row.title,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -126,6 +128,11 @@ export function updateSessionStatus(id: string, status: Session['status']): void
     .run(status, Date.now(), id);
 }
 
+export function updateSessionTitle(id: string, title: string): void {
+  db.prepare('UPDATE sessions SET title = ?, updated_at = ? WHERE id = ?')
+    .run(title, Date.now(), id);
+}
+
 export function getSessionsByWorkspace(workspaceId: string): Session[] {
   const rows = db.prepare(
     'SELECT * FROM sessions WHERE workspace_id = ? AND status = \'active\' ORDER BY updated_at DESC LIMIT 50'
@@ -134,6 +141,7 @@ export function getSessionsByWorkspace(workspaceId: string): Session[] {
     id: row.id,
     workspaceId: row.workspace_id,
     status: row.status,
+    title: row.title,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   }));

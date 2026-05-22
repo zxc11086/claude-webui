@@ -70,7 +70,7 @@ export function Sidebar({ ws, onLogout, onOpenAdmin }: SidebarProps) {
               <MessageSquare className="w-4 h-4 flex-shrink-0" />
               <div className="flex-1 min-w-0">
                 <div className="truncate">
-                  {session.status === 'active' ? '当前会话' : truncate(session.id.slice(0, 8), 12)}
+                  {session.title || '新会话'}
                 </div>
                 <div className="text-xs text-muted-foreground">
                   {formatDate(session.createdAt)}

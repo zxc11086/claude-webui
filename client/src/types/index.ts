@@ -12,6 +12,7 @@ export interface Session {
   id: string;
   workspaceId: string;
   status: 'active' | 'idle' | 'closed';
+  title?: string;
   createdAt: number;
   updatedAt: number;
 }

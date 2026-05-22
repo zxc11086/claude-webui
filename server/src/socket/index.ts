@@ -120,6 +120,13 @@ function handleChatSend(
 
   // Echo back the user message
   socket.emit('user.message', { id: msg.id, sessionId, content, createdAt: msg.createdAt });
+
+  // Send updated session list (title may have been set)
+  const session = sessionService.getSession(sessionId);
+  if (session) {
+    const sessions = sessionService.getSessions(session.workspaceId);
+    socket.emit('workspace.init', { workspaceId: session.workspaceId, sessions });
+  }
 }
 
 function handleSessionCreate(
@@ -134,6 +141,10 @@ function handleSessionCreate(
   console.log(`[Socket] session.created: sessionId=${sessionId}, workspacePath=${workspacePath}`);
 
   socket.emit('session.created', { sessionId, workspaceId, workspacePath });
+  
+  // Send updated session list
+  const sessions = sessionService.getSessions(workspaceId);
+  socket.emit('workspace.init', { workspaceId, sessions });
 }
 
 function handleSessionResume(

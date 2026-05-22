@@ -81,6 +81,13 @@ export class SessionService {
     };
     db.createMessage(msg);
 
+    // Set session title from first user message
+    const session = db.getSession(sessionId);
+    if (session && !session.title) {
+      const title = content.length > 50 ? content.substring(0, 50) + '...' : content;
+      db.updateSessionTitle(sessionId, title);
+    }
+
     // Write to Claude process stdin
     RuntimeManager.write(sessionId, content);
 
