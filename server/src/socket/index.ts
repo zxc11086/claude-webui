@@ -153,15 +153,13 @@ function handleSessionResume(
   sessionId: string,
   sessionService: SessionService,
 ): void {
-  const session = sessionService.getSession(sessionId);
-  if (!session) {
-    socket.emit('error', { sessionId, message: 'Session not found' });
-    return;
+  try {
+    const { messages } = sessionService.resumeSession(sessionId);
+    client.sessionId = sessionId;
+    socket.emit('session.resumed', { sessionId, messages });
+  } catch (err: any) {
+    socket.emit('error', { sessionId, message: err.message || 'Failed to resume session' });
   }
-
-  client.sessionId = sessionId;
-  const messages = sessionService.getMessages(sessionId);
-  socket.emit('session.resumed', { sessionId, messages });
 }
 
 function handleSessionClose(

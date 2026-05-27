@@ -43,7 +43,6 @@ export class SessionService {
       workspace.path,
       (event) => this.callbacks.onEvent(sessionId, event),
       (id) => {
-        db.updateSessionStatus(id, 'closed');
         this.callbacks.onSessionClosed(id);
       },
     );
@@ -137,6 +136,32 @@ export class SessionService {
   /** Get sessions for a workspace */
   getSessions(workspaceId: string) {
     return db.getSessionsByWorkspace(workspaceId);
+  }
+
+  /** Resume a session, spawning a new Claude process if needed */
+  resumeSession(sessionId: string): { messages: Message[] } {
+    const session = db.getSession(sessionId);
+    if (!session) throw new Error(`Session ${sessionId} not found`);
+
+    // If no active Claude process, spawn a new one
+    if (!RuntimeManager.isActive(sessionId)) {
+      const workspace = db.getWorkspace(session.workspaceId);
+      if (!workspace) throw new Error(`Workspace ${session.workspaceId} not found`);
+
+      console.log(`[SessionService] Respawning Claude for session: ${sessionId.slice(0, 8)}`);
+
+      RuntimeManager.spawn(
+        sessionId,
+        workspace.path,
+        (event) => this.callbacks.onEvent(sessionId, event),
+        (id) => {
+          this.callbacks.onSessionClosed(id);
+        },
+      );
+    }
+
+    const messages = db.getMessagesBySession(sessionId);
+    return { messages };
   }
 
   /** Kill a session */

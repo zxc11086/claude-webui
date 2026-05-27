@@ -67,27 +67,29 @@ export function useWebSocket() {
           createdAt: msg.createdAt,
         });
       }
+      // isWaitingResponse may have been set to true by addMessage if the
+      // last historical message was from user — reset it so the user can send
+      store.setState({ isWaitingResponse: false });
     });
 
     socket.on('session.closed', (data: { sessionId: string; reason?: string }) => {
       const state = store.getState();
-      // Always remove from sidebar list
-      state.setSessions(state.sessions.filter(s => s.id !== data.sessionId));
 
-      if (state.activeSessionId === data.sessionId) {
-        if (data.reason === 'user_requested') {
-          // User explicitly closed the session — reset to welcome page
+      if (data.reason === 'user_requested') {
+        // User explicitly closed the session — remove from list and reset
+        state.setSessions(state.sessions.filter(s => s.id !== data.sessionId));
+        if (state.activeSessionId === data.sessionId) {
           state.setActiveSession(null);
           state.resetChat();
-        } else {
-          // Process exited unexpectedly — keep the chat view and show error
-          state.addMessage({
-            id: `closed-${Date.now()}`,
-            role: 'system',
-            content: '会话已结束。Claude 进程已退出，请检查 Claude Code CLI 是否正确安装。',
-            createdAt: Date.now(),
-          });
         }
+      } else if (state.activeSessionId === data.sessionId) {
+        // Process exited unexpectedly — keep session in sidebar, show error
+        state.addMessage({
+          id: `closed-${Date.now()}`,
+          role: 'system',
+          content: 'Claude 进程已断开，正在重新连接...点击会话可恢复对话。',
+          createdAt: Date.now(),
+        });
       }
     });
 

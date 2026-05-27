@@ -37,6 +37,7 @@ export interface RuntimeSession {
   onExit: (sessionId: string) => void;
   createdAt: number;
   heartbeatAt: number;
+  cleanedUp?: boolean;
 }
 
 const sessions = new Map<string, RuntimeSession>();
@@ -91,7 +92,6 @@ export class RuntimeManager {
       '--include-partial-messages',
       '--replay-user-messages',
       '--session-id', sessionId,
-      '--no-session-persistence',
       '--verbose',
     ];
     if (config.dangerouslySkipPermissions) {
@@ -171,7 +171,9 @@ export class RuntimeManager {
         createdAt: Date.now(),
       });
       sessions.delete(sessionId);
-      onExit(sessionId);
+      if (!runtime.cleanedUp) {
+        onExit(sessionId);
+      }
     });
 
     // Wire up stream parser to translate Claude events → Runtime events
@@ -226,6 +228,7 @@ export class RuntimeManager {
   static kill(sessionId: string): void {
     const session = sessions.get(sessionId);
     if (session) {
+      session.cleanedUp = true;
       session.proc.kill();
       sessions.delete(sessionId);
     }
@@ -241,6 +244,7 @@ export class RuntimeManager {
     const now = Date.now();
     for (const [id, session] of sessions) {
       if (now - session.heartbeatAt > timeout) {
+        session.cleanedUp = true;
         session.proc.kill();
         sessions.delete(id);
       }

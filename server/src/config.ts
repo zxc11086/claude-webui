@@ -18,7 +18,7 @@ export const config = {
   claudePath: process.env.CLAUDE_PATH || 'claude',
 
   // Session limits
-  sessionTimeout: parseInt(process.env.SESSION_TIMEOUT || '3600000', 10), // 1 hour
+  sessionTimeout: parseInt(process.env.SESSION_TIMEOUT || '86400000', 10), // 24 hours
   maxSessionsPerUser: parseInt(process.env.MAX_SESSIONS || '5', 10),
 
   // Skip all permission prompts (passes --dangerously-skip-permissions to Claude CLI)

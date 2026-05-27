@@ -135,7 +135,7 @@ export function updateSessionTitle(id: string, title: string): void {
 
 export function getSessionsByWorkspace(workspaceId: string): Session[] {
   const rows = db.prepare(
-    'SELECT * FROM sessions WHERE workspace_id = ? AND status = \'active\' ORDER BY updated_at DESC LIMIT 50'
+    'SELECT * FROM sessions WHERE workspace_id = ? AND status != \'closed\' ORDER BY updated_at DESC LIMIT 50'
   ).all(workspaceId) as any[];
   return rows.map(row => ({
     id: row.id,
