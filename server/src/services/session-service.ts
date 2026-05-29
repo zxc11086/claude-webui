@@ -157,6 +157,7 @@ export class SessionService {
         (id) => {
           this.callbacks.onSessionClosed(id);
         },
+        true,
       );
     }
 

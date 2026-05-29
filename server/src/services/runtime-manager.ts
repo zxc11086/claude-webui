@@ -49,6 +49,7 @@ export class RuntimeManager {
     workspacePath: string,
     onEvent: (event: RuntimeEvent) => void,
     onExit: (sessionId: string) => void,
+    resume = false,
   ): RuntimeSession {
     if (!fs.existsSync(workspacePath)) {
       fs.mkdirSync(workspacePath, { recursive: true });
@@ -85,13 +86,14 @@ export class RuntimeManager {
 
     const parser = new StreamParser();
 
+    const sessionIdArg = resume ? '--resume' : '--session-id';
     const args = [
       '--print',
       '--output-format', 'stream-json',
       '--input-format', 'stream-json',
       '--include-partial-messages',
       '--replay-user-messages',
-      '--session-id', sessionId,
+      sessionIdArg, sessionId,
       '--verbose',
     ];
     if (config.dangerouslySkipPermissions) {
