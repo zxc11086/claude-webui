@@ -8,7 +8,8 @@ import { Sidebar } from './components/layout/Sidebar';
 import { ChatView } from './components/chat/ChatView';
 import { useChatStore } from './stores/chat-store';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+// 默认使用相对路径，让 Vite proxy 或同源部署转发请求
+const API_URL = import.meta.env.VITE_API_URL || '';
 
 export default function App() {
   const { isAuthenticated, token, logout, user } = useAuthStore();

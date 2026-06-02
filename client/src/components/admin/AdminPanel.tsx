@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react';
 import { useAuthStore } from '../../stores/auth-store';
 import { Users, Trash2, BarChart3, X } from 'lucide-react';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+// 默认使用相对路径，让 Vite proxy 或同源部署转发请求
+const API_URL = import.meta.env.VITE_API_URL || '';
 
 interface User {
   id: string;

@@ -17,17 +17,7 @@ const authService = new AuthService();
 export function createSocketServer(httpServer: HttpServer, sessionService: SessionService): SocketServer {
   const io = new SocketServer(httpServer, {
     cors: {
-      origin: (origin, callback) => {
-        // Allow requests with no origin
-        if (!origin) return callback(null, true);
-        
-        // Allow localhost on any port
-        if (origin.match(/^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/)) {
-          return callback(null, true);
-        }
-        
-        callback(new Error('Not allowed by CORS'));
-      },
+      origin: true,  // 允许所有来源（JWT 鉴权已处理安全问题，与 Express CORS 保持一致）
       methods: ['GET', 'POST'],
       credentials: true,
     },

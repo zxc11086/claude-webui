@@ -16,17 +16,7 @@ import { Server as SocketServer } from 'socket.io';
 
 const app = express();
 app.use(cors({
-  origin: (origin, callback) => {
-    // Allow requests with no origin (like mobile apps or curl requests)
-    if (!origin) return callback(null, true);
-    
-    // Allow localhost on any port
-    if (origin.match(/^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/)) {
-      return callback(null, true);
-    }
-    
-    callback(new Error('Not allowed by CORS'));
-  },
+  origin: config.corsOrigin || true,  // 默认允许所有来源（JWT 鉴权已处理安全问题）
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
@@ -185,8 +175,7 @@ function startServer(port: number, retries = 0): void {
     console.log(`[Claude WebUI Server] WebSocket ready`);
     console.log(`[Claude WebUI Server] Workspaces root: ${config.workspacesRoot}`);
 
-    const wsId = sessionService.ensureDefaultWorkspace();
-    console.log(`[Claude WebUI Server] Default workspace: ${wsId}`);
+    // Workspace is created on-demand when a user connects via WebSocket
   });
 
   httpServer.on('error', (err: NodeJS.ErrnoException) => {

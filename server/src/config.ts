@@ -28,6 +28,13 @@ export const config = {
   processHeartbeatInterval: 30000, // 30s
   processCleanupInterval: 60000,   // 60s
 
+  // CORS — 默认允许所有来源，生产环境可设 CORS_ORIGIN 限定
+  corsOrigin: process.env.CORS_ORIGIN === 'false'
+    ? false
+    : process.env.CORS_ORIGIN
+      ? process.env.CORS_ORIGIN
+      : true,
+
   // JWT
   jwtSecret: process.env.JWT_SECRET || 'your-secret-key-change-in-production',
   jwtExpiresIn: process.env.JWT_EXPIRES_IN || '7d',

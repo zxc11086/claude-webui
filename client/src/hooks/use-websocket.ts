@@ -4,7 +4,8 @@ import { useChatStore } from '../stores/chat-store';
 import { useAuthStore } from '../stores/auth-store';
 import { ServerToClientEvents, Session } from '../types/index';
 
-const SOCKET_URL = import.meta.env.VITE_WS_URL || 'http://localhost:3001';
+// 默认使用相对路径，让 Vite proxy 或同源部署转发请求
+const SOCKET_URL = import.meta.env.VITE_WS_URL || '';
 
 export function useWebSocket() {
   const socketRef = useRef<Socket | null>(null);
