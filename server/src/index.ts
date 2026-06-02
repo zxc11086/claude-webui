@@ -1,8 +1,12 @@
 import express from 'express';
 import cors from 'cors';
 import { createServer } from 'http';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { config } from './config.js';
 import { SessionService } from './services/session-service.js';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 import { createSocketServer, clients } from './socket/index.js';
 import { createSessionRoutes } from './routes/sessions.js';
 import { createWorkspaceRoutes } from './routes/workspaces.js';
@@ -22,6 +26,27 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization'],
 }));
 app.use(express.json());
+
+// --- Static files (production) ---
+const clientDist = path.join(__dirname, '..', '..', 'client', 'dist');
+app.use(express.static(clientDist));
+
+// SPA fallback: non-API/non-Socket.IO requests → index.html
+app.use((req, res, next) => {
+  if (req.path.startsWith('/api') || req.path.startsWith('/socket.io')) {
+    return next();
+  }
+  const indexPath = path.join(clientDist, 'index.html');
+  res.sendFile(indexPath, (err) => {
+    if (err) {
+      // dist 目录不存在时返回提示
+      res.status(503).json({
+        error: 'Frontend not built',
+        message: '请先构建前端: cd client && npm run build',
+      });
+    }
+  });
+});
 
 const httpServer = createServer(app);
 
