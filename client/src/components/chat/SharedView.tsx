@@ -51,30 +51,34 @@ export function SharedView() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background flex flex-col max-w-3xl mx-auto">
       {/* Header */}
-      <div className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-10">
-        <div className="max-w-3xl mx-auto px-4 py-4">
-          <h1 className="text-lg font-semibold text-foreground">分享的对话</h1>
-          <p className="text-xs text-muted-foreground mt-1">
+      <div className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-10 flex-shrink-0">
+        <div className="max-w-3xl mx-auto px-6 py-5 text-center">
+          <h1 className="text-xl font-semibold text-foreground">分享的对话</h1>
+          <p className="text-sm text-muted-foreground mt-1.5">
             此对话由智能问数平台生成并分享
           </p>
         </div>
       </div>
 
-      {/* Messages */}
-      <div className="max-w-3xl mx-auto px-4 py-6 space-y-6">
-        {messages.map((msg) => (
-          <MessageItem key={msg.id} message={msg} />
-        ))}
+      {/* Messages Container - Scrollable */}
+      <div className="flex-1 overflow-y-auto flex justify-center">
+        <div className="w-full max-w-3xl px-6 py-8">
+          <div className="space-y-6">
+            {messages.map((msg) => (
+              <MessageItem key={msg.id} message={msg} />
+            ))}
+          </div>
+        </div>
       </div>
 
       {/* Footer */}
-      <div className="border-t border-border bg-card/50 mt-8">
-        <div className="max-w-3xl mx-auto px-4 py-4 text-center">
-          <p className="text-xs text-muted-foreground">
+      <div className="border-t border-border bg-card/50 flex-shrink-0">
+        <div className="max-w-3xl mx-auto px-6 py-5 text-center">
+          <p className="text-sm text-muted-foreground">
             想体验智能问数？
-            <a href="/" className="text-primary hover:underline ml-1">
+            <a href="/" className="text-primary hover:underline ml-2 font-medium">
               立即开始使用
             </a>
           </p>
