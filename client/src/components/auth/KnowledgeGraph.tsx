@@ -185,7 +185,7 @@ export function KnowledgeGraph() {
         // Fade based on position along edge (bright in middle)
         const brightness = 0.3 + Math.sin(p.t * Math.PI) * 0.7;
         (p.mesh.material as THREE.MeshBasicMaterial).opacity = brightness;
-        p.mesh.material.transparent = true;
+        (p.mesh.material as THREE.MeshBasicMaterial).transparent = true;
       }
 
       // Pulse node glow
