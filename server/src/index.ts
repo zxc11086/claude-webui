@@ -12,6 +12,7 @@ import { createSessionRoutes } from './routes/sessions.js';
 import { createWorkspaceRoutes } from './routes/workspaces.js';
 import { createAuthRoutes } from './routes/auth.js';
 import { createAdminRoutes } from './routes/admin.js';
+import { createShareRoutes } from './routes/share.js';
 import { RuntimeEvent } from './types/index.js';
 import { isClaudeAvailable } from './services/runtime-manager.js';
 import { Server as SocketServer } from 'socket.io';
@@ -80,6 +81,7 @@ app.use('/api/auth', createAuthRoutes());
 app.use('/api/admin', createAdminRoutes());
 app.use('/api/sessions', createSessionRoutes(sessionService));
 app.use('/api/workspaces', createWorkspaceRoutes());
+app.use('/api/share', createShareRoutes());
 
 // Health check
 app.get('/api/health', (_req, res) => {

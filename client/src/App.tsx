@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useWebSocket } from './hooks/use-websocket';
 import { useAuthStore } from './stores/auth-store';
 import { useThemeStore } from './stores/theme-store';
@@ -6,12 +7,13 @@ import { LoginForm } from './components/auth/LoginForm';
 import { AdminPanel } from './components/admin/AdminPanel';
 import { Sidebar } from './components/layout/Sidebar';
 import { ChatView } from './components/chat/ChatView';
+import { SharedView } from './components/chat/SharedView';
 import { useChatStore } from './stores/chat-store';
 
 // 默认使用相对路径，让 Vite proxy 或同源部署转发请求
 const API_URL = import.meta.env.VITE_API_URL || '';
 
-export default function App() {
+function MainApp() {
   const { isAuthenticated, token, logout, user } = useAuthStore();
   const ws = useWebSocket();
   const { connected, activeSessionId, globalError } = useChatStore();
@@ -135,5 +137,16 @@ export default function App() {
 
     {showAdmin && <AdminPanel onClose={() => setShowAdmin(false)} />}
   </>
+  );
+}
+
+export default function App() {
+  return (
+    <BrowserRouter>
+      <Routes>
+        <Route path="/share/:shareId" element={<SharedView />} />
+        <Route path="/*" element={<MainApp />} />
+      </Routes>
+    </BrowserRouter>
   );
 }

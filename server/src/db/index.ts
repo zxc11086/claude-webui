@@ -54,9 +54,17 @@ db.exec(`
     FOREIGN KEY (session_id) REFERENCES sessions(id)
   );
 
+  CREATE TABLE IF NOT EXISTS shared_conversations (
+    id TEXT PRIMARY KEY,
+    messages TEXT NOT NULL,
+    created_at INTEGER NOT NULL DEFAULT (unixepoch() * 1000),
+    expires_at INTEGER
+  );
+
   CREATE INDEX IF NOT EXISTS idx_messages_session ON messages(session_id, created_at);
   CREATE INDEX IF NOT EXISTS idx_sessions_workspace ON sessions(workspace_id);
   CREATE INDEX IF NOT EXISTS idx_workspaces_user ON workspaces(user_id);
+  CREATE INDEX IF NOT EXISTS idx_shared_expires ON shared_conversations(expires_at);
 `);
 
 // --- Workspace queries ---
@@ -174,6 +182,33 @@ export function getMessagesBySession(sessionId: string, limit = 200): Message[] 
       createdAt: row.created_at,
     };
   });
+}
+
+// --- Shared conversation queries ---
+
+export function createSharedConversation(id: string, messages: any[]): void {
+  const stmt = db.prepare(`
+    INSERT INTO shared_conversations (id, messages, created_at, expires_at)
+    VALUES (?, ?, ?, ?)
+  `);
+  const expiresAt = Date.now() + 30 * 24 * 60 * 60 * 1000; // 30 days
+  stmt.run(id, JSON.stringify(messages), Date.now(), expiresAt);
+}
+
+export function getSharedConversation(id: string): any[] | null {
+  const row = db.prepare(
+    'SELECT messages, expires_at FROM shared_conversations WHERE id = ?'
+  ).get(id) as any;
+  
+  if (!row) return null;
+  
+  // Check if expired
+  if (row.expires_at && row.expires_at < Date.now()) {
+    db.prepare('DELETE FROM shared_conversations WHERE id = ?').run(id);
+    return null;
+  }
+  
+  return JSON.parse(row.messages);
 }
 
 export default db;
