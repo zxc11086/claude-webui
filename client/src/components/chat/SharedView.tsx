@@ -51,7 +51,7 @@ export function SharedView() {
   }
 
   return (
-    <div className="min-h-screen bg-background flex flex-col max-w-3xl mx-auto">
+    <div className="min-h-screen bg-background flex flex-col w-full mx-auto">
       {/* Header */}
       <div className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-10 flex-shrink-0">
         <div className="max-w-3xl mx-auto px-6 py-5 text-center">

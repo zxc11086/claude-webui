@@ -110,11 +110,11 @@ export function MessageItem({ message, onShare, isShareMode, isSelected }: Messa
 
         {/* Body */}
         <div className={`
-          rounded-lg px-4 py-3 text-sm leading-relaxed
+          rounded-lg px-4 text-sm leading-relaxed
           ${role === 'user'
             ? 'bg-primary text-primary-foreground ml-auto max-w-[85%] inline-block text-left'
             : role === 'assistant'
-              ? 'bg-card border border-border text-foreground w-full'
+              ? 'bg-card border border-border text-foreground max-w-[85%] inline-block'
               : role === 'tool'
                 ? 'bg-yellow-900/10 border border-yellow-900/30 text-muted-foreground'
                 : 'bg-red-900/10 border border-red-900/30 text-red-300'
