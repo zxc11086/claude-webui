@@ -7,18 +7,19 @@ import rehypeKatex from 'rehype-katex';
 import rehypeRaw from 'rehype-raw';
 import { UIMessage } from '../../types/index';
 import { formatTime } from '../../lib/utils';
-import { Bot, User, Wrench, AlertCircle, Copy, Check } from 'lucide-react';
+import { Bot, User, Wrench, AlertCircle, Copy, Check, Share2 } from 'lucide-react';
 import { useThemeStore } from '../../stores/theme-store';
 import { useState } from 'react';
 import 'katex/dist/katex.min.css';
 
 interface MessageItemProps {
   message: UIMessage;
-  onSelect?: (id: string) => void;
+  onShare?: (id: string) => void;
+  isShareMode?: boolean;
   isSelected?: boolean;
 }
 
-export function MessageItem({ message, onSelect, isSelected }: MessageItemProps) {
+export function MessageItem({ message, onShare, isShareMode, isSelected }: MessageItemProps) {
   const { role, content, createdAt, isStreaming } = message;
   const isWaiting = role === 'assistant' && content === '' && !isStreaming;
   const { theme } = useThemeStore();
@@ -26,9 +27,23 @@ export function MessageItem({ message, onSelect, isSelected }: MessageItemProps)
 
   const handleCopy = async () => {
     try {
-      await navigator.clipboard.writeText(content);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(content);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      } else {
+        // Fallback for older browsers
+        const textArea = document.createElement('textarea');
+        textArea.value = content;
+        textArea.style.position = 'fixed';
+        textArea.style.left = '-999999px';
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      }
     } catch (err) {
       console.error('Failed to copy:', err);
     }
@@ -50,15 +65,19 @@ export function MessageItem({ message, onSelect, isSelected }: MessageItemProps)
 
   return (
     <div className={`animate-fade-in flex gap-3 ${role === 'user' ? 'flex-row-reverse' : ''} group relative`}>
-      {/* Selection checkbox */}
-      {onSelect && (
-        <div className="absolute -left-8 top-0">
-          <input
-            type="checkbox"
-            checked={isSelected}
-            onChange={() => onSelect(message.id)}
-            className="w-4 h-4 rounded border-border cursor-pointer"
-          />
+      {/* Selection indicator */}
+      {isShareMode && role === 'assistant' && (
+        <div 
+          onClick={() => onShare?.(message.id)}
+          className={`absolute -left-8 top-0 w-5 h-5 rounded border-2 flex items-center justify-center cursor-pointer transition-colors ${
+            isSelected ? 'bg-primary border-primary' : 'border-border hover:border-primary'
+          }`}
+        >
+          {isSelected && (
+            <svg className="w-3 h-3 text-primary-foreground" fill="none" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" viewBox="0 0 24 24" stroke="currentColor">
+              <polyline points="20 6 9 17 4 12"></polyline>
+            </svg>
+          )}
         </div>
       )}
 
@@ -87,21 +106,6 @@ export function MessageItem({ message, onSelect, isSelected }: MessageItemProps)
           <span className="text-xs text-muted-foreground">
             {formatTime(createdAt)}
           </span>
-          
-          {/* Copy button */}
-          {!isWaiting && (role === 'user' || role === 'assistant') && (
-            <button
-              onClick={handleCopy}
-              className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded hover:bg-muted"
-              title="复制消息"
-            >
-              {copied ? (
-                <Check className="w-3.5 h-3.5 text-green-500" />
-              ) : (
-                <Copy className="w-3.5 h-3.5 text-muted-foreground" />
-              )}
-            </button>
-          )}
         </div>
 
         {/* Body */}
@@ -225,6 +229,39 @@ export function MessageItem({ message, onSelect, isSelected }: MessageItemProps)
             <pre className="whitespace-pre-wrap text-xs font-mono">{content}</pre>
           )}
         </div>
+
+        {/* Footer actions */}
+        {!isWaiting && role === 'assistant' && (
+          <div className="flex items-center gap-2 mt-2">
+            <button
+              onClick={handleCopy}
+              className="flex items-center gap-1 px-2 py-1 text-xs text-muted-foreground hover:text-foreground transition-colors rounded hover:bg-muted"
+              title="复制消息"
+            >
+              {copied ? (
+                <>
+                  <Check className="w-3.5 h-3.5 text-green-500" />
+                  <span className="text-green-500">已复制</span>
+                </>
+              ) : (
+                <>
+                  <Copy className="w-3.5 h-3.5" />
+                  <span>复制</span>
+                </>
+              )}
+            </button>
+            {onShare && (
+              <button
+                onClick={() => onShare(message.id)}
+                className="flex items-center gap-1 px-2 py-1 text-xs text-muted-foreground hover:text-foreground transition-colors rounded hover:bg-muted"
+                title={isShareMode ? (isSelected ? '取消选择' : '选择此对话') : '分享此对话'}
+              >
+                <Share2 className="w-3.5 h-3.5" />
+                <span>{isShareMode ? (isSelected ? '已选择' : '选择') : '分享'}</span>
+              </button>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
