@@ -30,7 +30,7 @@ export function Sidebar({ ws, onLogout, onOpenAdmin }: SidebarProps) {
       <div className="p-4 border-b border-border">
         <div className="flex items-center gap-2 mb-3">
           <Terminal className="w-5 h-5 text-primary" />
-          <span className="font-semibold text-sm">Claude Code</span>
+          <span className="font-semibold text-sm">智能问数</span>
         </div>
         <button
           onClick={() => {

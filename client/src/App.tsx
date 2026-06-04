@@ -101,10 +101,9 @@ export default function App() {
           <div className="flex-1 flex items-center justify-center">
             <div className="text-center space-y-6 max-w-md">
               <div className="text-6xl">🤖</div>
-              <h1 className="text-2xl font-bold text-foreground">Claude Code WebUI</h1>
+              <h1 className="text-2xl font-bold text-foreground">智能问数</h1>
               <p className="text-muted-foreground leading-relaxed">
-                基于 Claude Code CLI 的多用户 Web 界面。
-                创建会话开始与 Claude 交互，支持流式输出、Tool Call 可视化和 Shell 输出实时展示。
+                基于本体知识图谱的智能问数平台。
               </p>
 
               {/* Global error banner */}

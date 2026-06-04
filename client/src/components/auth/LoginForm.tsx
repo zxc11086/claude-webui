@@ -55,10 +55,10 @@ export function LoginForm() {
               </div>
             </div>
             <h2 className="text-3xl font-bold text-center text-white mb-2">
-              Claude Code WebUI
+              智能问数
             </h2>
             <p className="text-center text-gray-400 text-sm">
-              {isRegister ? '创建新账户' : '登录到您的账户'}
+              基于本体知识图谱的智能问数平台
             </p>
           </div>
 

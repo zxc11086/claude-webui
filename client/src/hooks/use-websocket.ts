@@ -88,7 +88,7 @@ export function useWebSocket() {
         state.addMessage({
           id: `closed-${Date.now()}`,
           role: 'system',
-          content: 'Claude 进程已断开，正在重新连接...点击会话可恢复对话。',
+          content: '智能问数进程已断开，正在重新连接...点击会话可恢复对话。',
           createdAt: Date.now(),
         });
       }

@@ -61,7 +61,7 @@ export function ChatInput({ onSend, disabled, isStreaming, isWaitingResponse }: 
           </button>
         </div>
         <p className="text-xs text-muted-foreground text-center mt-2">
-          Claude Code WebUI · 支持 Markdown · 文件编辑 · Shell 执行
+          智能问数 · 支持 Markdown · 文件编辑 · Shell 执行
         </p>
       </div>
     </div>

@@ -15,9 +15,9 @@ export function MessageList() {
       <div className="flex-1 flex items-center justify-center text-muted-foreground text-sm">
         <div className="text-center space-y-3">
           <div className="text-4xl">👋</div>
-          <p>开始与 Claude 对话吧</p>
+          <p>开始与智能问数对话吧</p>
           <p className="text-xs text-muted-foreground/70">
-            Claude 可以编辑文件、执行命令、搜索代码
+            基于本体知识图谱的智能问数平台
           </p>
         </div>
       </div>

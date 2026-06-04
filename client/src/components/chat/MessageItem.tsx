@@ -29,7 +29,7 @@ export function MessageItem({ message }: MessageItemProps) {
 
   const roleLabelMap = {
     user: '你',
-    assistant: 'Claude',
+    assistant: '智能问数',
     tool: '工具',
     system: '系统',
   };
